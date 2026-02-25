@@ -78,7 +78,7 @@
 
         .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; }
         #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
-        #opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.6; display: none; }
+        #opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.8; display: none; }
 
         .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
 
@@ -236,7 +236,7 @@
     let currentSeedText = "";
     let myAbsHeight = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
-    let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
+    let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
     let cameraY = 0; 
     let keys = {};
@@ -309,7 +309,7 @@
             if (data.type === 'name-sync') { opponent.name = data.name; opponent.active = true; updateLobbyUI(); }
             if (data.type === 'start-game') { document.getElementById('seed-input').value = data.seed; initGame(data.seed); }
             if (data.type === 'pos') { 
-                opponent.x = data.x; opponent.absY = data.absY; opponent.dead = data.dead; 
+                opponent.targetX = data.x; opponent.targetAbsY = data.absY; opponent.dead = data.dead; 
                 opponent.finalScore = data.currentScore; opponent.currentLiveScore = data.currentScore;
                 opponent.active = true; 
             }
@@ -331,6 +331,7 @@
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
         myAbsHeight = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
         opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0; difficultyState = 0;
+        opponent.x = 185; opponent.absY = 500;
         
         scoreEl.innerText = "0"; specMsgEl.style.display = 'none'; hostLeftAlert.style.display = 'none';
         document.getElementById('my-name-tag').innerText = player.name;
@@ -349,9 +350,9 @@
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
-        // Tallennetaan alkuperäinen y suhteessa maailmaan, jotta render-funktio voi piirtää sen cameraY:n avulla
         let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
-        platforms.push({ x, worldY: y, w, el, mvSpeed });
+        // Käytetään worldY-arvoa, joka pysyy vakiona maailmassa
+        platforms.push({ x, worldY: y - cameraY, w, el, mvSpeed });
     }
 
     function spawnPlatformAt(y) {
@@ -362,7 +363,7 @@
         }
         const w = nextSeededRandom() * (maxW - minW) + minW;
         const x = nextSeededRandom() * (WIDTH - w);
-        createPlatform(x, y - cameraY, w);
+        createPlatform(x, y, w);
     }
 
     function updateLiveLeaderboard() {
@@ -390,6 +391,12 @@
 
         updateLiveLeaderboard();
 
+        // Pehmeä vastustajan liikkeen päivitys lagin vähentämiseksi
+        if (opponent.active) {
+            opponent.x += (opponent.targetX - opponent.x) * 0.2;
+            opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2;
+        }
+
         if (!isGameOver) {
             updatePlayer(dt);
             checkDifficulty();
@@ -401,7 +408,7 @@
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
         }
 
-        // PÄIVITETÄÄN PLATFORMIT (Aina, jotta synkka säilyy)
+        // PÄIVITETÄÄN PLATFORMIT (Sama animaatio molemmilla ruuduilla)
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 p.x += p.mvSpeed * dt;
@@ -452,10 +459,10 @@
         cameraY += diff;
         if (!isGameOver) { myAbsHeight += diff / 10; scoreEl.innerText = Math.floor(myAbsHeight); }
         platforms.forEach(p => {
-            if (p.worldY + cameraY > HEIGHT) { 
+            if (p.worldY + cameraY > HEIGHT + 100) { 
                 p.el.remove(); 
                 platforms = platforms.filter(item => item !== p); 
-                spawnPlatformAt(0); 
+                spawnPlatformAt(-100); 
             }
         });
     }
@@ -468,7 +475,7 @@
             opponentEl.style.display = 'block';
             let oppY = opponent.absY + cameraY;
             opponentEl.style.transform = `translate(${opponent.x}px, ${oppY}px)`;
-            opponentEl.style.opacity = opponent.dead ? "0.1" : "0.6";
+            opponentEl.style.opacity = opponent.dead ? "0.1" : "0.8";
         }
         
         platforms.forEach(p => {
