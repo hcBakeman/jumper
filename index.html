@@ -56,12 +56,26 @@
 
         .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; }
         
+        /* LIVE UI */
         #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; align-items: flex-start; }
         .ui-element { font-size: 18px; text-shadow: 0 0 5px rgba(0,0,0,0.5); }
         #seed-display { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+        
+        #live-leaderboard {
+            position: absolute; top: 45px; right: 10px; text-align: right;
+            font-size: 12px; color: rgba(255,255,255,0.8); z-index: 90;
+            background: rgba(0,0,0,0.3); padding: 5px 8px; border-radius: 4px;
+        }
+        .live-entry { margin-bottom: 2px; }
+
+        #host-left-alert {
+            position: absolute; top: 0; width: 100%; background: var(--warning);
+            color: white; text-align: center; font-size: 12px; font-weight: bold;
+            padding: 4px 0; z-index: 1000; display: none;
+        }
 
         #announce { position: absolute; width: 100%; top: 100px; text-align: center; color: var(--warning); font-size: 40px; font-weight: 900; display: none; z-index: 150; text-shadow: 0 0 20px var(--warning); letter-spacing: 5px; }
-        #spec-msg { position: absolute; width: 100%; top: 40px; text-align: center; color: var(--warning); display: none; font-weight: bold; }
+        #spec-msg { position: absolute; width: 100%; top: 80px; text-align: center; color: var(--warning); display: none; font-weight: bold; }
 
         #overlay { 
             position: absolute; inset: 0; background: rgba(0,0,0,0.9); 
@@ -70,11 +84,8 @@
         }
 
         #player-list {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            padding: 10px;
-            margin: 15px 0;
-            text-align: left;
+            background: rgba(255, 255, 255, 0.05); border-radius: 8px;
+            padding: 10px; margin: 15px 0; text-align: left;
         }
         .player-entry { font-size: 13px; margin: 4px 0; display: flex; justify-content: space-between; }
         .status-dot { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; display: inline-block; margin-right: 8px; }
@@ -99,6 +110,8 @@
     </style>
 </head>
 <body>
+
+<div id="host-left-alert">CONNECTION LOST: HOST LEFT THE SESSION</div>
 
 <div id="main-body" class="pulsing">
     <div id="setup-menu">
@@ -134,8 +147,11 @@
             <div class="ui-element">SCORE: <span id="score">0</span></div>
             <div id="seed-display">SEED: <span id="current-seed-tag">---</span></div>
         </div>
+
+        <div id="live-leaderboard"></div>
+
         <div id="announce">HARDER!</div>
-        <div id="spec-msg">SPECTATING TEAMMATE...</div>
+        <div id="spec-msg">WATCHING...</div>
         
         <div id="player" class="player-box"><div class="name-tag" id="my-name-tag"></div></div>
         <div id="opponent" class="player-box"><div class="name-tag" id="opp-name-tag"></div></div>
@@ -159,9 +175,12 @@
     const scoreEl = document.getElementById('score');
     const seedTag = document.getElementById('current-seed-tag');
     const announceEl = document.getElementById('announce');
+    const specMsgEl = document.getElementById('spec-msg');
     const overlay = document.getElementById('overlay');
     const setupMenu = document.getElementById('setup-menu');
     const lobbyContent = document.getElementById('lobby-list-content');
+    const liveLeaderboardEl = document.getElementById('live-leaderboard');
+    const hostLeftAlert = document.getElementById('host-left-alert');
 
     const GRAVITY = 1600; 
     const JUMP_FORCE = -650;
@@ -172,7 +191,7 @@
     let seedValue = 0;
     let myAbsHeight = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
-    let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0 };
+    let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
     let cameraY = 0; 
     let keys = {};
@@ -180,7 +199,6 @@
     let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
     let difficultyState = 0; 
 
-    // DETERMINISTINEN SATUNNAISLUKU (TÄRKEÄ SYNKRONOINNILLE)
     function nextSeededRandom() {
         seedValue = (seedValue * 16807) % 2147483647;
         return (seedValue - 1) / 2147483646;
@@ -206,6 +224,7 @@
     function backToLobby() {
         isRunning = false; container.style.display = 'none';
         setupMenu.style.display = 'block'; overlay.style.display = 'none';
+        hostLeftAlert.style.display = 'none';
     }
 
     let peer = new Peer();
@@ -235,10 +254,24 @@
             }
             conn.send({ type: 'name-sync', name: player.name });
         });
+
+        conn.on('close', () => {
+            if (!isHost) hostLeftAlert.style.display = 'block';
+            opponent.active = false;
+            updateLobbyUI();
+        });
+
         conn.on('data', data => {
             if (data.type === 'name-sync') { opponent.name = data.name; opponent.active = true; updateLobbyUI(); }
             if (data.type === 'start-game') { document.getElementById('seed-input').value = data.seed; initGame(data.seed); }
-            if (data.type === 'pos') { opponent.x = data.x; opponent.absY = data.absY; opponent.dead = data.dead; opponent.finalScore = data.currentScore; opponent.active = true; }
+            if (data.type === 'pos') { 
+                opponent.x = data.x; 
+                opponent.absY = data.absY; 
+                opponent.dead = data.dead; 
+                opponent.finalScore = data.currentScore; 
+                opponent.currentLiveScore = data.currentScore;
+                opponent.active = true; 
+            }
         });
     }
 
@@ -250,21 +283,20 @@
 
     function initGame(seedText) {
         seedTag.innerText = seedText;
-        // Muutetaan teksti numeroksi siementä varten
         seedValue = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
         if (seedValue <= 0) seedValue += 2147483646;
 
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
         myAbsHeight = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
-        opponent.dead = false; opponent.finalScore = 0; difficultyState = 0;
+        opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0; difficultyState = 0;
         
         scoreEl.innerText = "0";
+        specMsgEl.style.display = 'none';
+        hostLeftAlert.style.display = 'none';
         document.getElementById('my-name-tag').innerText = player.name;
         document.getElementById('opp-name-tag').innerText = opponent.name;
         
         container.querySelectorAll('.platform').forEach(p => p.remove());
-        
-        // Luodaan aloitusplatform ja ensimmäiset tasot samalla tavalla molemmille
         createPlatform(150, 550, 100);
         for(let i=1; i<10; i++) spawnPlatformAt(HEIGHT - (i * 80));
         
@@ -278,7 +310,6 @@
         el.className = 'platform';
         el.style.width = w + 'px';
         container.appendChild(el);
-        // Siemenlukuun perustuva liikenopeus takaa saman liikkeen molemmille
         let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
         platforms.push({ x, y, w, el, mvSpeed });
     }
@@ -289,10 +320,24 @@
             let shrink = Math.min(40, (myAbsHeight - 500) / 50); 
             minW -= shrink; maxW -= shrink;
         }
-        // Käytetään nextSeededRandomia jotta leveys ja sijainti on sama molemmilla
         const w = nextSeededRandom() * (maxW - minW) + minW;
         const x = nextSeededRandom() * (WIDTH - w);
         createPlatform(x, y, w);
+    }
+
+    function updateLiveLeaderboard() {
+        let pList = [{name: player.name, score: Math.floor(myAbsHeight), dead: isGameOver}];
+        if(opponent.active) pList.push({name: opponent.name, score: opponent.currentLiveScore, dead: opponent.dead});
+        
+        pList.sort((a,b) => b.score - a.score);
+        
+        let html = "";
+        pList.forEach(p => {
+            let color = p.name === player.name ? "var(--neon)" : "#ff00ff";
+            let status = p.dead ? '<span style="color:red; font-size:9px;">[DEAD]</span> ' : '';
+            html += `<div class="live-entry" style="color:${color}">${status}${p.name}: ${p.score}</div>`;
+        });
+        liveLeaderboardEl.innerHTML = html;
     }
 
     function gameLoop(timestamp) {
@@ -301,13 +346,17 @@
         lastTime = timestamp;
         if (dt > 0.1 || isNaN(dt)) { requestAnimationFrame(gameLoop); return; }
 
+        updateLiveLeaderboard();
+
         if (!isGameOver) {
             updatePlayer(dt);
             checkDifficulty();
         } else if (opponent.active && !opponent.dead) {
             let diff = (HEIGHT / 2) - (opponent.absY + cameraY);
             if (opponent.absY + cameraY < HEIGHT / 2) moveWorld(diff);
-            document.getElementById('spec-msg').style.display = 'block';
+            
+            specMsgEl.style.display = 'block';
+            specMsgEl.innerText = `WATCHING ${opponent.name}...`;
         }
 
         if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
@@ -402,13 +451,21 @@
 
     function showEndScreen() {
         overlay.style.display = 'flex'; 
-        document.getElementById('spec-msg').style.display = 'none';
+        specMsgEl.style.display = 'none';
         const table = document.getElementById('final-leaderboard');
-        const myS = Math.floor(myAbsHeight);
-        const opS = opponent.finalScore;
         
-        table.innerHTML = `<tr><td>${player.name}</td><td style="text-align:right" class="${myS >= opS ? 'winner' : ''}">${myS}</td></tr>` +
-                        (opponent.active ? `<tr><td>${opponent.name}</td><td style="text-align:right" class="${opS >= myS ? 'winner' : ''}">${opS}</td></tr>` : '');
+        let pilots = [{ name: player.name, score: Math.floor(myAbsHeight) }];
+        if (opponent.active) pilots.push({ name: opponent.name, score: opponent.finalScore });
+
+        pilots.sort((a, b) => b.score - a.score);
+
+        let html = "";
+        pilots.forEach((pilot, index) => {
+            const isWinner = index === 0;
+            html += `<tr><td>${pilot.name}</td><td style="text-align:right" class="${isWinner ? 'winner' : ''}">${pilot.score}</td></tr>`;
+        });
+        
+        table.innerHTML = html;
     }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
