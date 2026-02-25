@@ -53,16 +53,18 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
+        /* LIVE LISTA PELIRUUDUN ULKOPUOLELLA - KORKEA Z-INDEX */
         #live-leaderboard {
             position: absolute;
             top: 0;
             left: 420px; 
             width: 180px;
-            background: rgba(26, 26, 46, 0.8);
+            background: rgba(26, 26, 46, 0.9);
             border-left: 3px solid var(--neon);
             padding: 15px;
             border-radius: 0 8px 8px 0;
             font-family: 'Courier New', Courier, monospace;
+            z-index: 500;
         }
 
         .leaderboard-title {
@@ -81,11 +83,10 @@
 
         .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
 
-        .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; }
+        .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; z-index: 10; }
         
         #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; }
         .ui-element { font-size: 18px; text-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        #seed-display { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 4px; }
         
         .live-entry { margin-bottom: 8px; font-size: 14px; display: flex; flex-direction: column; }
         .live-score { font-size: 18px; font-weight: bold; }
@@ -97,12 +98,28 @@
         }
 
         #announce { position: absolute; width: 100%; top: 100px; text-align: center; color: var(--warning); font-size: 40px; font-weight: 900; display: none; z-index: 150; text-shadow: 0 0 20px var(--warning); letter-spacing: 5px; }
-        #spec-msg { position: absolute; width: 100%; top: 80px; text-align: center; color: var(--warning); display: none; font-weight: bold; }
+        
+        /* WATCHING TEKSTI - NOSTETTU PLATFORMIEN YLÄPUOLELLE */
+        #spec-msg { 
+            position: absolute; 
+            width: 100%; 
+            top: 80px; 
+            text-align: center; 
+            color: var(--warning); 
+            display: none; 
+            font-weight: bold; 
+            z-index: 400; 
+            text-transform: uppercase;
+            font-size: 14px;
+            letter-spacing: 2px;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 0;
+        }
 
         #overlay { 
             position: absolute; inset: 0; background: rgba(0,0,0,0.9); 
             display: none; flex-direction: column; align-items: center; 
-            justify-content: center; z-index: 200; 
+            justify-content: center; z-index: 600; 
         }
 
         #player-list {
@@ -168,11 +185,11 @@
         <div id="game-container">
             <div id="ui">
                 <div class="ui-element">SCORE: <span id="score">0</span></div>
-                <div id="seed-display">SEED: <span id="current-seed-tag">---</span></div>
+                <div id="seed-display" style="font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase;">SEED: <span id="current-seed-tag">---</span></div>
             </div>
 
             <div id="announce">HARDER!</div>
-            <div id="spec-msg">WATCHING...</div>
+            <div id="spec-msg">WATCHING PILOT...</div>
             
             <div id="player" class="player-box"><div class="name-tag" id="my-name-tag"></div></div>
             <div id="opponent" class="player-box"><div class="name-tag" id="opp-name-tag"></div></div>
@@ -259,10 +276,7 @@
     let peer = new Peer();
     let conn;
     peer.on('open', id => { myPeerId = id; document.getElementById('my-id-value').innerText = "YOUR ID: " + id; updateLobbyUI(); });
-    peer.on('connection', c => { 
-        conn = c; isHost = true; isConnected = true; 
-        setupConnection(); 
-    });
+    peer.on('connection', c => { conn = c; isHost = true; isConnected = true; setupConnection(); });
 
     function copyIdToClipboard() {
         if (!myPeerId) return;
@@ -283,11 +297,8 @@
                 document.getElementById('main-start-btn').style.display = 'none';
                 document.getElementById('seed-btn').style.display = 'none';
                 document.getElementById('guest-wait-info').style.display = 'block';
-            } else {
-                // LATE JOIN LOGIIKKA: Jos host on jo pelissä, lähetetään käynnistysviesti heti
-                if (isRunning) {
-                    conn.send({ type: 'start-game', seed: currentSeedText });
-                }
+            } else if (isRunning) {
+                conn.send({ type: 'start-game', seed: currentSeedText });
             }
             conn.send({ type: 'name-sync', name: player.name });
         });
@@ -383,21 +394,23 @@
             updatePlayer(dt);
             checkDifficulty();
         } else if (opponent.active && !opponent.dead) {
+            // SPEKTAATTORI MOODI: Seurataan vastustajaa
             let diff = (HEIGHT / 2) - (opponent.absY + cameraY);
             if (opponent.absY + cameraY < HEIGHT / 2) moveWorld(diff);
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
         }
 
-        if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
-        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
-        
+        // PÄIVITETÄÄN PLATFORMIT MYÖS KUOLLEENA (Sama dt molemmilla, pysyy synkassa)
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 p.x += p.mvSpeed * dt;
                 if (p.x + p.w > WIDTH || p.x < 0) p.mvSpeed *= -1;
             }
         });
+
+        if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
+        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
         
         render();
         requestAnimationFrame(gameLoop);
