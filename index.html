@@ -169,17 +169,22 @@
     const WIDTH = 400;
     const HEIGHT = 600;
 
-    let currentSeed = 0;
-    let actualSeedString = "";
+    let seedValue = 0;
+    let myAbsHeight = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
     let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0 };
     let platforms = [];
-    let score = 0;
-    let cameraY = 0;
+    let cameraY = 0; 
     let keys = {};
     let isGameOver = false, isRunning = false;
     let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
     let difficultyState = 0; 
+
+    // DETERMINISTINEN SATUNNAISLUKU (TÄRKEÄ SYNKRONOINNILLE)
+    function nextSeededRandom() {
+        seedValue = (seedValue * 16807) % 2147483647;
+        return (seedValue - 1) / 2147483646;
+    }
 
     function updateLobbyUI() {
         let html = `<div class="player-entry"><span><span class="status-dot"></span>${player.name} (YOU)</span></div>`;
@@ -243,24 +248,26 @@
         if (!isConnected || isHost) initGame(seed);
     }
 
-    function seededRandom() {
-        currentSeed = (currentSeed * 16807) % 2147483647;
-        return (currentSeed - 1) / 2147483646;
-    }
-
     function initGame(seedText) {
-        actualSeedString = seedText;
         seedTag.innerText = seedText;
-        currentSeed = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
-        if (currentSeed < 0) currentSeed *= -1;
+        // Muutetaan teksti numeroksi siementä varten
+        seedValue = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
+        if (seedValue <= 0) seedValue += 2147483646;
+
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
-        score = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
-        opponent.dead = false; difficultyState = 0;
+        myAbsHeight = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
+        opponent.dead = false; opponent.finalScore = 0; difficultyState = 0;
+        
+        scoreEl.innerText = "0";
         document.getElementById('my-name-tag').innerText = player.name;
         document.getElementById('opp-name-tag').innerText = opponent.name;
+        
         container.querySelectorAll('.platform').forEach(p => p.remove());
+        
+        // Luodaan aloitusplatform ja ensimmäiset tasot samalla tavalla molemmille
         createPlatform(150, 550, 100);
         for(let i=1; i<10; i++) spawnPlatformAt(HEIGHT - (i * 80));
+        
         overlay.style.display = 'none'; setupMenu.style.display = 'none'; container.style.display = 'block';
         if (isConnected && !isHost) { document.getElementById('restart-area').style.display = 'none'; document.getElementById('guest-restart-info').style.display = 'block'; }
         requestAnimationFrame(gameLoop);
@@ -271,18 +278,20 @@
         el.className = 'platform';
         el.style.width = w + 'px';
         container.appendChild(el);
-        let mvSpeed = (difficultyState >= 2) ? (seededRandom() > 0.5 ? 1 : -1) * (50 + (score/10)) : 0;
+        // Siemenlukuun perustuva liikenopeus takaa saman liikkeen molemmille
+        let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
         platforms.push({ x, y, w, el, mvSpeed });
     }
 
     function spawnPlatformAt(y) {
         let minW = 60, maxW = 100;
-        if (score > 500) {
-            let shrink = Math.min(40, (score - 500) / 50); 
+        if (myAbsHeight > 500) {
+            let shrink = Math.min(40, (myAbsHeight - 500) / 50); 
             minW -= shrink; maxW -= shrink;
         }
-        const w = seededRandom() * (maxW - minW) + minW;
-        const x = seededRandom() * (WIDTH - w);
+        // Käytetään nextSeededRandomia jotta leveys ja sijainti on sama molemmilla
+        const w = nextSeededRandom() * (maxW - minW) + minW;
+        const x = nextSeededRandom() * (WIDTH - w);
         createPlatform(x, y, w);
     }
 
@@ -297,12 +306,15 @@
             checkDifficulty();
         } else if (opponent.active && !opponent.dead) {
             let diff = (HEIGHT / 2) - (opponent.absY + cameraY);
-            if (opponent.absY + cameraY < HEIGHT / 2) moveCamera(diff);
+            if (opponent.absY + cameraY < HEIGHT / 2) moveWorld(diff);
             document.getElementById('spec-msg').style.display = 'block';
         }
 
         if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
-        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(score) });
+        
+        if (isConnected && conn.open) {
+            conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
+        }
         
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
@@ -316,9 +328,9 @@
     }
 
     function checkDifficulty() {
-        if (difficultyState === 0 && score >= 500) {
+        if (difficultyState === 0 && myAbsHeight >= 500) {
             difficultyState = 1; showAnnounce("HARDER!");
-        } else if (difficultyState === 1 && score >= 1500) {
+        } else if (difficultyState === 1 && myAbsHeight >= 1500) {
             difficultyState = 2; showAnnounce("HARDER!");
         }
     }
@@ -332,9 +344,11 @@
         if (keys['ArrowLeft']) player.vx = -HORIZONTAL_SPEED;
         else if (keys['ArrowRight']) player.vx = HORIZONTAL_SPEED;
         else player.vx *= Math.pow(0.01, dt);
+        
         player.vy += GRAVITY * dt;
         player.x += player.vx * dt;
         player.y += player.vy * dt;
+        
         if (player.x > WIDTH) player.x = -25;
         if (player.x < -25) player.x = WIDTH;
 
@@ -345,15 +359,32 @@
             }
         });
 
-        if (player.y < HEIGHT / 2) { moveCamera(HEIGHT / 2 - player.y); player.y = HEIGHT / 2; }
-        if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(score); }
+        if (player.y < HEIGHT / 2) { 
+            let diff = HEIGHT / 2 - player.y;
+            moveWorld(diff);
+            player.y = HEIGHT / 2;
+        }
+
+        if (player.y > HEIGHT) { 
+            isGameOver = true; 
+            player.finalScore = Math.floor(myAbsHeight); 
+        }
     }
 
-    function moveCamera(diff) {
-        cameraY += diff; score += diff / 10; scoreEl.innerText = Math.floor(score);
+    function moveWorld(diff) {
+        cameraY += diff;
+        if (!isGameOver) {
+            myAbsHeight += diff / 10;
+            scoreEl.innerText = Math.floor(myAbsHeight);
+        }
+        
         platforms.forEach(p => {
             p.y += diff;
-            if (p.y > HEIGHT) { p.el.remove(); platforms = platforms.filter(item => item !== p); spawnPlatformAt(0); }
+            if (p.y > HEIGHT) { 
+                p.el.remove(); 
+                platforms = platforms.filter(item => item !== p); 
+                spawnPlatformAt(0); 
+            }
         });
     }
 
@@ -370,11 +401,14 @@
     }
 
     function showEndScreen() {
-        overlay.style.display = 'flex'; document.getElementById('spec-msg').style.display = 'none';
+        overlay.style.display = 'flex'; 
+        document.getElementById('spec-msg').style.display = 'none';
         const table = document.getElementById('final-leaderboard');
-        const myS = Math.floor(score), opS = opponent.finalScore;
-        table.innerHTML = `<tr><td>${player.name}</td><td style="text-align:right" class="${myS>=opS?'winner':''}">${myS}</td></tr>` +
-                        (opponent.active ? `<tr><td>${opponent.name}</td><td style="text-align:right" class="${opS>=myS?'winner':''}">${opS}</td></tr>` : '');
+        const myS = Math.floor(myAbsHeight);
+        const opS = opponent.finalScore;
+        
+        table.innerHTML = `<tr><td>${player.name}</td><td style="text-align:right" class="${myS >= opS ? 'winner' : ''}">${myS}</td></tr>` +
+                        (opponent.active ? `<tr><td>${opponent.name}</td><td style="text-align:right" class="${opS >= myS ? 'winner' : ''}">${opS}</td></tr>` : '');
     }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
