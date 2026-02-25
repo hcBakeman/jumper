@@ -53,7 +53,6 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* LIVE LISTA PELIRUUDUN ULKOPUOLELLA - KORKEA Z-INDEX */
         #live-leaderboard {
             position: absolute;
             top: 0;
@@ -99,7 +98,6 @@
 
         #announce { position: absolute; width: 100%; top: 100px; text-align: center; color: var(--warning); font-size: 40px; font-weight: 900; display: none; z-index: 150; text-shadow: 0 0 20px var(--warning); letter-spacing: 5px; }
         
-        /* WATCHING TEKSTI - NOSTETTU PLATFORMIEN YLÄPUOLELLE */
         #spec-msg { 
             position: absolute; 
             width: 100%; 
@@ -112,8 +110,9 @@
             text-transform: uppercase;
             font-size: 14px;
             letter-spacing: 2px;
-            background: rgba(0,0,0,0.5);
-            padding: 5px 0;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 0;
+            text-shadow: 0 0 10px var(--warning);
         }
 
         #overlay { 
@@ -339,7 +338,7 @@
         
         container.querySelectorAll('.platform').forEach(p => p.remove());
         createPlatform(150, 550, 100);
-        for(let i=1; i<10; i++) spawnPlatformAt(HEIGHT - (i * 80));
+        for(let i=1; i<15; i++) spawnPlatformAt(HEIGHT - (i * 80));
         
         overlay.style.display = 'none'; setupMenu.style.display = 'none'; wrapper.style.display = 'block';
         if (isConnected && !isHost) { document.getElementById('restart-area').style.display = 'none'; document.getElementById('guest-restart-info').style.display = 'block'; }
@@ -350,8 +349,9 @@
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
+        // Tallennetaan alkuperäinen y suhteessa maailmaan, jotta render-funktio voi piirtää sen cameraY:n avulla
         let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
-        platforms.push({ x, y, w, el, mvSpeed });
+        platforms.push({ x, worldY: y, w, el, mvSpeed });
     }
 
     function spawnPlatformAt(y) {
@@ -362,7 +362,7 @@
         }
         const w = nextSeededRandom() * (maxW - minW) + minW;
         const x = nextSeededRandom() * (WIDTH - w);
-        createPlatform(x, y, w);
+        createPlatform(x, y - cameraY, w);
     }
 
     function updateLiveLeaderboard() {
@@ -384,9 +384,9 @@
 
     function gameLoop(timestamp) {
         if (!isRunning) return;
-        const dt = (timestamp - lastTime) / 1000;
+        let dt = (timestamp - lastTime) / 1000;
         lastTime = timestamp;
-        if (dt > 0.1 || isNaN(dt)) { requestAnimationFrame(gameLoop); return; }
+        if (dt > 0.1 || isNaN(dt)) dt = 0.016;
 
         updateLiveLeaderboard();
 
@@ -394,14 +394,14 @@
             updatePlayer(dt);
             checkDifficulty();
         } else if (opponent.active && !opponent.dead) {
-            // SPEKTAATTORI MOODI: Seurataan vastustajaa
-            let diff = (HEIGHT / 2) - (opponent.absY + cameraY);
-            if (opponent.absY + cameraY < HEIGHT / 2) moveWorld(diff);
+            // SPEKTAATTORI: Seurataan vastustajaa pehmeästi
+            let targetCameraY = (HEIGHT / 2) - opponent.absY;
+            cameraY += (targetCameraY - cameraY) * 0.1;
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
         }
 
-        // PÄIVITETÄÄN PLATFORMIT MYÖS KUOLLEENA (Sama dt molemmilla, pysyy synkassa)
+        // PÄIVITETÄÄN PLATFORMIT (Aina, jotta synkka säilyy)
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 p.x += p.mvSpeed * dt;
@@ -410,7 +410,7 @@
         });
 
         if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
-        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
+        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
         
         render();
         requestAnimationFrame(gameLoop);
@@ -436,10 +436,15 @@
         if (player.x < -25) player.x = WIDTH;
 
         platforms.forEach(p => {
-            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > p.y && player.y + 25 < p.y + 15) player.vy = JUMP_FORCE;
+            let py = p.worldY + cameraY;
+            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > py && player.y + 25 < py + 15) player.vy = JUMP_FORCE;
         });
 
-        if (player.y < HEIGHT / 2) { let diff = HEIGHT / 2 - player.y; moveWorld(diff); player.y = HEIGHT / 2; }
+        if (player.y < HEIGHT / 2) { 
+            let diff = HEIGHT / 2 - player.y; 
+            moveWorld(diff); 
+            player.y = HEIGHT / 2; 
+        }
         if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(myAbsHeight); }
     }
 
@@ -447,21 +452,28 @@
         cameraY += diff;
         if (!isGameOver) { myAbsHeight += diff / 10; scoreEl.innerText = Math.floor(myAbsHeight); }
         platforms.forEach(p => {
-            p.y += diff;
-            if (p.y > HEIGHT) { p.el.remove(); platforms = platforms.filter(item => item !== p); spawnPlatformAt(0); }
+            if (p.worldY + cameraY > HEIGHT) { 
+                p.el.remove(); 
+                platforms = platforms.filter(item => item !== p); 
+                spawnPlatformAt(0); 
+            }
         });
     }
 
     function render() {
         playerEl.style.transform = `translate(${player.x}px, ${player.y}px)`;
         playerEl.style.display = isGameOver ? 'none' : 'block';
+        
         if (opponent.active) {
             opponentEl.style.display = 'block';
             let oppY = opponent.absY + cameraY;
             opponentEl.style.transform = `translate(${opponent.x}px, ${oppY}px)`;
             opponentEl.style.opacity = opponent.dead ? "0.1" : "0.6";
         }
-        platforms.forEach(p => p.el.style.transform = `translate(${p.x}px, ${p.y}px)`);
+        
+        platforms.forEach(p => {
+            p.el.style.transform = `translate(${p.x}px, ${p.worldY + cameraY}px)`;
+        });
     }
 
     function showEndScreen() {
