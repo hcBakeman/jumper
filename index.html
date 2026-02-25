@@ -106,19 +106,19 @@
             color: var(--warning); 
             display: none; 
             font-weight: bold; 
-            z-index: 400; 
+            z-index: 1000;
             text-transform: uppercase;
-            font-size: 14px;
+            font-size: 16px;
             letter-spacing: 2px;
-            background: rgba(0,0,0,0.6);
-            padding: 10px 0;
-            text-shadow: 0 0 10px var(--warning);
+            background: rgba(0,0,0,0.7);
+            padding: 12px 0;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
 
         #overlay { 
             position: absolute; inset: 0; background: rgba(0,0,0,0.9); 
             display: none; flex-direction: column; align-items: center; 
-            justify-content: center; z-index: 600; 
+            justify-content: center; z-index: 1100; 
         }
 
         #player-list {
@@ -239,6 +239,7 @@
     let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
     let cameraY = 0; 
+    let highestWorldY = 0; // Seurataan maailman korkeinta kohtaa
     let keys = {};
     let isGameOver = false, isRunning = false;
     let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
@@ -330,8 +331,9 @@
 
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
         myAbsHeight = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
+        highestWorldY = 600; 
         opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0; difficultyState = 0;
-        opponent.x = 185; opponent.absY = 500;
+        opponent.x = 185; opponent.absY = 500; opponent.targetAbsY = 500;
         
         scoreEl.innerText = "0"; specMsgEl.style.display = 'none'; hostLeftAlert.style.display = 'none';
         document.getElementById('my-name-tag').innerText = player.name;
@@ -346,16 +348,16 @@
         requestAnimationFrame(gameLoop);
     }
 
-    function createPlatform(x, y, w) {
+    function createPlatform(x, worldY, w) {
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
         let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
-        // Käytetään worldY-arvoa, joka pysyy vakiona maailmassa
-        platforms.push({ x, worldY: y - cameraY, w, el, mvSpeed });
+        platforms.push({ x, worldY, w, el, mvSpeed });
+        if (worldY < highestWorldY) highestWorldY = worldY;
     }
 
-    function spawnPlatformAt(y) {
+    function spawnPlatformAt(worldY) {
         let minW = 60, maxW = 100;
         if (myAbsHeight > 500) {
             let shrink = Math.min(40, (myAbsHeight - 500) / 50); 
@@ -363,7 +365,7 @@
         }
         const w = nextSeededRandom() * (maxW - minW) + minW;
         const x = nextSeededRandom() * (WIDTH - w);
-        createPlatform(x, y, w);
+        createPlatform(x, worldY, w);
     }
 
     function updateLiveLeaderboard() {
@@ -391,7 +393,7 @@
 
         updateLiveLeaderboard();
 
-        // Pehmeä vastustajan liikkeen päivitys lagin vähentämiseksi
+        // Pehmeä vastustajan liikkeen päivitys
         if (opponent.active) {
             opponent.x += (opponent.targetX - opponent.x) * 0.2;
             opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2;
@@ -406,14 +408,28 @@
             cameraY += (targetCameraY - cameraY) * 0.1;
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
+            
+            // Luodaan uusia platformeja jos kaveri kiipeää ylemmäs kuin mihin platformit loppuvat
+            while (highestWorldY > opponent.absY - HEIGHT) {
+                spawnPlatformAt(highestWorldY - 80);
+            }
         }
 
-        // PÄIVITETÄÄN PLATFORMIT (Sama animaatio molemmilla ruuduilla)
+        // PÄIVITETÄÄN PLATFORMIEN LIIKE (Vaakasuuntainen)
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 p.x += p.mvSpeed * dt;
                 if (p.x + p.w > WIDTH || p.x < 0) p.mvSpeed *= -1;
             }
+        });
+
+        // POISTETAAN PLATFORMIT JOTKA OVAT LIIAN ALHAALLA KAMERAAN NÄHDEN
+        platforms = platforms.filter(p => {
+            if (p.worldY + cameraY > HEIGHT + 200) {
+                p.el.remove();
+                return false;
+            }
+            return true;
         });
 
         if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
@@ -442,29 +458,25 @@
         if (player.x > WIDTH) player.x = -25;
         if (player.x < -25) player.x = WIDTH;
 
+        // TÖRMÄYKSET (Käytetään worldY + cameraY, koska se on platformin sijainti ruudulla)
         platforms.forEach(p => {
-            let py = p.worldY + cameraY;
-            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > py && player.y + 25 < py + 15) player.vy = JUMP_FORCE;
+            let screenY = p.worldY + cameraY;
+            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > screenY && player.y + 25 < screenY + 15) player.vy = JUMP_FORCE;
         });
 
         if (player.y < HEIGHT / 2) { 
             let diff = HEIGHT / 2 - player.y; 
-            moveWorld(diff); 
+            cameraY += diff;
+            myAbsHeight += diff / 10; 
+            scoreEl.innerText = Math.floor(myAbsHeight);
             player.y = HEIGHT / 2; 
+
+            // Luodaan uusia platformeja maailmaan
+            while (highestWorldY > -cameraY - 100) {
+                spawnPlatformAt(highestWorldY - 80);
+            }
         }
         if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(myAbsHeight); }
-    }
-
-    function moveWorld(diff) {
-        cameraY += diff;
-        if (!isGameOver) { myAbsHeight += diff / 10; scoreEl.innerText = Math.floor(myAbsHeight); }
-        platforms.forEach(p => {
-            if (p.worldY + cameraY > HEIGHT + 100) { 
-                p.el.remove(); 
-                platforms = platforms.filter(item => item !== p); 
-                spawnPlatformAt(-100); 
-            }
-        });
     }
 
     function render() {
@@ -473,8 +485,8 @@
         
         if (opponent.active) {
             opponentEl.style.display = 'block';
-            let oppY = opponent.absY + cameraY;
-            opponentEl.style.transform = `translate(${opponent.x}px, ${oppY}px)`;
+            let oppScreenY = opponent.absY + cameraY;
+            opponentEl.style.transform = `translate(${opponent.x}px, ${oppScreenY}px)`;
             opponentEl.style.opacity = opponent.dead ? "0.1" : "0.8";
         }
         
