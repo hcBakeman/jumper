@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NEON REBOUND: WORLD CHAMPIONSHIP</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { 
+            --neon: #00f2ff; 
+            --bg: #0d0221; 
+            --warning: #ff0055; 
+            --pulse-color: rgba(0, 242, 255, 0.03);
+        }
+
+        body { 
+            margin: 0; 
+            background: var(--bg); 
+            color: white; 
+            font-family: 'Segoe UI', sans-serif; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+
+        @keyframes breathe {
+            0% { background-color: var(--bg); }
+            50% { background-color: var(--pulse-color); }
+            100% { background-color: var(--bg); }
+        }
+
+        .pulsing { 
+            animation: breathe 3.25s infinite ease-in-out; 
+            width: 100vw; height: 100vh;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        #setup-menu { margin-top: 40px; text-align: center; z-index: 10; width: 340px; }
+        
+        #game-container { 
+            position: relative; 
+            width: 400px; 
+            height: 600px; 
+            border: 4px solid #1a1a2e; 
+            overflow: hidden; 
+            background: #050110; 
+            display: none; 
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; }
+        #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
+        #opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.6; display: none; }
+
+        .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
+
+        .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; }
+        
+        #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; align-items: flex-start; }
+        .ui-element { font-size: 18px; text-shadow: 0 0 5px rgba(0,0,0,0.5); }
+        #seed-display { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+        #announce { position: absolute; width: 100%; top: 100px; text-align: center; color: var(--warning); font-size: 40px; font-weight: 900; display: none; z-index: 150; text-shadow: 0 0 20px var(--warning); letter-spacing: 5px; }
+        #spec-msg { position: absolute; width: 100%; top: 40px; text-align: center; color: var(--warning); display: none; font-weight: bold; }
+
+        #overlay { 
+            position: absolute; inset: 0; background: rgba(0,0,0,0.9); 
+            display: none; flex-direction: column; align-items: center; 
+            justify-content: center; z-index: 200; 
+        }
+
+        #player-list {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        .player-entry { font-size: 13px; margin: 4px 0; display: flex; justify-content: space-between; }
+        .status-dot { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; display: inline-block; margin-right: 8px; }
+
+        .score-board { margin: 15px 0; width: 80%; border-collapse: collapse; }
+        .score-board td { padding: 8px; border-bottom: 1px solid #333; }
+        .winner { color: gold; font-weight: bold; text-shadow: 0 0 10px gold; }
+
+        .start-btn { 
+            padding: 12px 24px; background: var(--neon); border: none; 
+            font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px;
+            box-shadow: 0 0 10px var(--neon); text-transform: uppercase;
+        }
+        .secondary-btn { 
+            padding: 8px 16px; background: transparent; border: 1px solid #5465ff; 
+            color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px;
+        }
+
+        input { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
+        
+        #my-id-container { font-size: 11px; opacity: 0.8; margin-bottom: 15px; cursor: pointer; padding: 5px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.2); }
+    </style>
+</head>
+<body>
+
+<div id="main-body" class="pulsing">
+    <div id="setup-menu">
+        <h1 style="color: var(--neon); letter-spacing: 4px; margin-bottom: 5px;">NEON REBOUND</h1>
+        
+        <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+        
+        <div id="player-list">
+            <div style="font-size: 10px; color: #5465ff; margin-bottom: 5px; font-weight: bold;">LOBBY PILOTS:</div>
+            <div id="lobby-list-content"></div>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <input type="text" id="seed-input" placeholder="MAP SEED">
+            <button class="secondary-btn" onclick="generateNewSeed()" id="seed-btn" style="white-space: nowrap;">New Seed</button>
+        </div>
+        
+        <button class="start-btn" id="main-start-btn" onclick="requestStart()">Launch Mission</button>
+        <p id="guest-wait-info" style="display:none; color: #aaa; font-size: 12px;">Waiting for Host to start...</p>
+        
+        <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+            <div id="my-id-container" onclick="copyIdToClipboard()">
+                <span id="my-id-value" style="font-weight: bold; color: var(--neon);">CONNECTING...</span>
+                <span id="copy-hint" style="display:block; font-size: 9px;">(Click to copy ID)</span>
+            </div>
+            <input type="text" id="join-id" placeholder="PASTE FRIEND'S ID">
+            <button style="padding: 6px 15px; cursor: pointer; width: 100%; margin-top: 5px;" onclick="connectToPeer()">CONNECT TO PILOT</button>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="ui">
+            <div class="ui-element">SCORE: <span id="score">0</span></div>
+            <div id="seed-display">SEED: <span id="current-seed-tag">---</span></div>
+        </div>
+        <div id="announce">HARDER!</div>
+        <div id="spec-msg">SPECTATING TEAMMATE...</div>
+        
+        <div id="player" class="player-box"><div class="name-tag" id="my-name-tag"></div></div>
+        <div id="opponent" class="player-box"><div class="name-tag" id="opp-name-tag"></div></div>
+        
+        <div id="overlay">
+            <h1 style="color: var(--warning); margin: 0;">MISSION FAILED</h1>
+            <table class="score-board" id="final-leaderboard"></table>
+            <div id="restart-area">
+                <button class="start-btn" onclick="requestStart()">Rematch</button>
+                <button class="secondary-btn" onclick="backToLobby()" style="color: white; border-color: white;">Back to Lobby</button>
+            </div>
+            <p id="guest-restart-info" style="display:none; color: var(--neon);">Waiting for Host...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const playerEl = document.getElementById('player');
+    const opponentEl = document.getElementById('opponent');
+    const scoreEl = document.getElementById('score');
+    const seedTag = document.getElementById('current-seed-tag');
+    const announceEl = document.getElementById('announce');
+    const overlay = document.getElementById('overlay');
+    const setupMenu = document.getElementById('setup-menu');
+    const lobbyContent = document.getElementById('lobby-list-content');
+
+    const GRAVITY = 1600; 
+    const JUMP_FORCE = -650;
+    const HORIZONTAL_SPEED = 400;
+    const WIDTH = 400;
+    const HEIGHT = 600;
+
+    let currentSeed = 0;
+    let actualSeedString = "";
+    let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
+    let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0 };
+    let platforms = [];
+    let score = 0;
+    let cameraY = 0;
+    let keys = {};
+    let isGameOver = false, isRunning = false;
+    let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
+    let difficultyState = 0; 
+
+    function updateLobbyUI() {
+        let html = `<div class="player-entry"><span><span class="status-dot"></span>${player.name} (YOU)</span></div>`;
+        if (opponent.active) html += `<div class="player-entry"><span><span class="status-dot"></span>${opponent.name}</span> <span style="font-size: 9px; opacity: 0.5;">READY</span></div>`;
+        lobbyContent.innerHTML = html;
+    }
+
+    function updateMyName() {
+        player.name = document.getElementById('name-input').value || "PILOT";
+        updateLobbyUI();
+        if (isConnected) conn.send({ type: 'name-sync', name: player.name });
+    }
+
+    function generateNewSeed() {
+        if (!isHost && isConnected) return;
+        document.getElementById('seed-input').value = Math.random().toString(36).substring(7).toUpperCase();
+    }
+
+    function backToLobby() {
+        isRunning = false; container.style.display = 'none';
+        setupMenu.style.display = 'block'; overlay.style.display = 'none';
+    }
+
+    let peer = new Peer();
+    let conn;
+    peer.on('open', id => { myPeerId = id; document.getElementById('my-id-value').innerText = "YOUR ID: " + id; updateLobbyUI(); });
+    peer.on('connection', c => { conn = c; isHost = true; isConnected = true; setupConnection(); });
+
+    function copyIdToClipboard() {
+        if (!myPeerId) return;
+        navigator.clipboard.writeText(myPeerId);
+        document.getElementById('copy-hint').innerText = "COPIED!";
+        setTimeout(() => document.getElementById('copy-hint').innerText = "(Click to copy ID)", 2000);
+    }
+
+    function connectToPeer() {
+        const id = document.getElementById('join-id').value.trim();
+        if(!id) return;
+        conn = peer.connect(id); isHost = false; isConnected = true; setupConnection();
+    }
+
+    function setupConnection() {
+        conn.on('open', () => {
+            if (!isHost) {
+                document.getElementById('main-start-btn').style.display = 'none';
+                document.getElementById('seed-btn').style.display = 'none';
+                document.getElementById('guest-wait-info').style.display = 'block';
+            }
+            conn.send({ type: 'name-sync', name: player.name });
+        });
+        conn.on('data', data => {
+            if (data.type === 'name-sync') { opponent.name = data.name; opponent.active = true; updateLobbyUI(); }
+            if (data.type === 'start-game') { document.getElementById('seed-input').value = data.seed; initGame(data.seed); }
+            if (data.type === 'pos') { opponent.x = data.x; opponent.absY = data.absY; opponent.dead = data.dead; opponent.finalScore = data.currentScore; opponent.active = true; }
+        });
+    }
+
+    function requestStart() {
+        const seed = document.getElementById('seed-input').value || "MISSION_1";
+        if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed });
+        if (!isConnected || isHost) initGame(seed);
+    }
+
+    function seededRandom() {
+        currentSeed = (currentSeed * 16807) % 2147483647;
+        return (currentSeed - 1) / 2147483646;
+    }
+
+    function initGame(seedText) {
+        actualSeedString = seedText;
+        seedTag.innerText = seedText;
+        currentSeed = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
+        if (currentSeed < 0) currentSeed *= -1;
+        player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
+        score = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
+        opponent.dead = false; difficultyState = 0;
+        document.getElementById('my-name-tag').innerText = player.name;
+        document.getElementById('opp-name-tag').innerText = opponent.name;
+        container.querySelectorAll('.platform').forEach(p => p.remove());
+        createPlatform(150, 550, 100);
+        for(let i=1; i<10; i++) spawnPlatformAt(HEIGHT - (i * 80));
+        overlay.style.display = 'none'; setupMenu.style.display = 'none'; container.style.display = 'block';
+        if (isConnected && !isHost) { document.getElementById('restart-area').style.display = 'none'; document.getElementById('guest-restart-info').style.display = 'block'; }
+        requestAnimationFrame(gameLoop);
+    }
+
+    function createPlatform(x, y, w) {
+        const el = document.createElement('div');
+        el.className = 'platform';
+        el.style.width = w + 'px';
+        container.appendChild(el);
+        let mvSpeed = (difficultyState >= 2) ? (seededRandom() > 0.5 ? 1 : -1) * (50 + (score/10)) : 0;
+        platforms.push({ x, y, w, el, mvSpeed });
+    }
+
+    function spawnPlatformAt(y) {
+        let minW = 60, maxW = 100;
+        if (score > 500) {
+            let shrink = Math.min(40, (score - 500) / 50); 
+            minW -= shrink; maxW -= shrink;
+        }
+        const w = seededRandom() * (maxW - minW) + minW;
+        const x = seededRandom() * (WIDTH - w);
+        createPlatform(x, y, w);
+    }
+
+    function gameLoop(timestamp) {
+        if (!isRunning) return;
+        const dt = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+        if (dt > 0.1 || isNaN(dt)) { requestAnimationFrame(gameLoop); return; }
+
+        if (!isGameOver) {
+            updatePlayer(dt);
+            checkDifficulty();
+        } else if (opponent.active && !opponent.dead) {
+            let diff = (HEIGHT / 2) - (opponent.absY + cameraY);
+            if (opponent.absY + cameraY < HEIGHT / 2) moveCamera(diff);
+            document.getElementById('spec-msg').style.display = 'block';
+        }
+
+        if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
+        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: isGameOver ? 2000 : (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(score) });
+        
+        platforms.forEach(p => {
+            if (p.mvSpeed !== 0) {
+                p.x += p.mvSpeed * dt;
+                if (p.x + p.w > WIDTH || p.x < 0) p.mvSpeed *= -1;
+            }
+        });
+        
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function checkDifficulty() {
+        if (difficultyState === 0 && score >= 500) {
+            difficultyState = 1; showAnnounce("HARDER!");
+        } else if (difficultyState === 1 && score >= 1500) {
+            difficultyState = 2; showAnnounce("HARDER!");
+        }
+    }
+
+    function showAnnounce(msg) {
+        announceEl.innerText = msg; announceEl.style.display = 'block';
+        setTimeout(() => announceEl.style.display = 'none', 3000);
+    }
+
+    function updatePlayer(dt) {
+        if (keys['ArrowLeft']) player.vx = -HORIZONTAL_SPEED;
+        else if (keys['ArrowRight']) player.vx = HORIZONTAL_SPEED;
+        else player.vx *= Math.pow(0.01, dt);
+        player.vy += GRAVITY * dt;
+        player.x += player.vx * dt;
+        player.y += player.vy * dt;
+        if (player.x > WIDTH) player.x = -25;
+        if (player.x < -25) player.x = WIDTH;
+
+        platforms.forEach(p => {
+            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x &&
+                player.y + 25 > p.y && player.y + 25 < p.y + 15) {
+                player.vy = JUMP_FORCE;
+            }
+        });
+
+        if (player.y < HEIGHT / 2) { moveCamera(HEIGHT / 2 - player.y); player.y = HEIGHT / 2; }
+        if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(score); }
+    }
+
+    function moveCamera(diff) {
+        cameraY += diff; score += diff / 10; scoreEl.innerText = Math.floor(score);
+        platforms.forEach(p => {
+            p.y += diff;
+            if (p.y > HEIGHT) { p.el.remove(); platforms = platforms.filter(item => item !== p); spawnPlatformAt(0); }
+        });
+    }
+
+    function render() {
+        playerEl.style.transform = `translate(${player.x}px, ${player.y}px)`;
+        playerEl.style.display = isGameOver ? 'none' : 'block';
+        if (opponent.active) {
+            opponentEl.style.display = 'block';
+            let oppY = opponent.absY + cameraY;
+            opponentEl.style.transform = `translate(${opponent.x}px, ${oppY}px)`;
+            opponentEl.style.opacity = opponent.dead ? "0.1" : "0.6";
+        }
+        platforms.forEach(p => p.el.style.transform = `translate(${p.x}px, ${p.y}px)`);
+    }
+
+    function showEndScreen() {
+        overlay.style.display = 'flex'; document.getElementById('spec-msg').style.display = 'none';
+        const table = document.getElementById('final-leaderboard');
+        const myS = Math.floor(score), opS = opponent.finalScore;
+        table.innerHTML = `<tr><td>${player.name}</td><td style="text-align:right" class="${myS>=opS?'winner':''}">${myS}</td></tr>` +
+                        (opponent.active ? `<tr><td>${opponent.name}</td><td style="text-align:right" class="${opS>=myS?'winner':''}">${opS}</td></tr>` : '');
+    }
+
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+</script>
+</body>
+</html>
