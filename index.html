@@ -37,10 +37,9 @@
 
         #setup-menu { margin-top: 40px; text-align: center; z-index: 10; width: 340px; }
         
-        /* PELIALUEEN JA LISTAN YMPÄRYKSI */
         .game-wrapper {
             position: relative;
-            display: none; /* Näytetään kun peli alkaa */
+            display: none; 
             margin-top: 20px;
         }
 
@@ -54,18 +53,16 @@
             box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* LIVE LISTA PELIRUUDUN ULKOPUOLELLA */
         #live-leaderboard {
             position: absolute;
             top: 0;
-            left: 420px; /* Peliruudun leveys + marginaali */
+            left: 420px; 
             width: 180px;
             background: rgba(26, 26, 46, 0.8);
             border-left: 3px solid var(--neon);
             padding: 15px;
             border-radius: 0 8px 8px 0;
             font-family: 'Courier New', Courier, monospace;
-            box-shadow: 10px 0 20px rgba(0,0,0,0.3);
         }
 
         .leaderboard-title {
@@ -220,6 +217,7 @@
     const HEIGHT = 600;
 
     let seedValue = 0;
+    let currentSeedText = "";
     let myAbsHeight = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
     let opponent = { x: 185, absY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
@@ -261,7 +259,10 @@
     let peer = new Peer();
     let conn;
     peer.on('open', id => { myPeerId = id; document.getElementById('my-id-value').innerText = "YOUR ID: " + id; updateLobbyUI(); });
-    peer.on('connection', c => { conn = c; isHost = true; isConnected = true; setupConnection(); });
+    peer.on('connection', c => { 
+        conn = c; isHost = true; isConnected = true; 
+        setupConnection(); 
+    });
 
     function copyIdToClipboard() {
         if (!myPeerId) return;
@@ -282,6 +283,11 @@
                 document.getElementById('main-start-btn').style.display = 'none';
                 document.getElementById('seed-btn').style.display = 'none';
                 document.getElementById('guest-wait-info').style.display = 'block';
+            } else {
+                // LATE JOIN LOGIIKKA: Jos host on jo pelissä, lähetetään käynnistysviesti heti
+                if (isRunning) {
+                    conn.send({ type: 'start-game', seed: currentSeedText });
+                }
             }
             conn.send({ type: 'name-sync', name: player.name });
         });
@@ -307,6 +313,7 @@
     }
 
     function initGame(seedText) {
+        currentSeedText = seedText;
         seedTag.innerText = seedText;
         seedValue = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
         if (seedValue <= 0) seedValue += 2147483646;
