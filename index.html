@@ -142,9 +142,24 @@
             color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px;
         }
 
-        input { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
+        input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
         
         #my-id-container { font-size: 11px; opacity: 0.8; margin-bottom: 15px; cursor: pointer; padding: 5px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.2); }
+
+        /* Skip Static UI */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+            padding: 8px;
+            background: rgba(0, 242, 255, 0.05);
+            border-radius: 8px;
+            border: 1px solid rgba(0, 242, 255, 0.1);
+        }
+        .checkbox-container input { cursor: pointer; width: 18px; height: 18px; accent-color: var(--neon); }
+        .checkbox-container label { font-size: 11px; color: var(--neon); cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body>
@@ -165,6 +180,11 @@
         <div style="display: flex; gap: 5px;">
             <input type="text" id="seed-input" placeholder="MAP SEED">
             <button class="secondary-btn" onclick="generateNewSeed()" id="seed-btn" style="white-space: nowrap;">New Seed</button>
+        </div>
+
+        <div class="checkbox-container" id="skip-container">
+            <input type="checkbox" id="skip-static-checkbox">
+            <label for="skip-static-checkbox">Skip Static (Start @ 1500m)</label>
         </div>
         
         <button class="start-btn" id="main-start-btn" onclick="requestStart()">Launch Mission</button>
@@ -225,6 +245,7 @@
     const lobbyContent = document.getElementById('lobby-list-content');
     const liveListGame = document.getElementById('live-list-content-game');
     const hostLeftAlert = document.getElementById('host-left-alert');
+    const skipCheckbox = document.getElementById('skip-static-checkbox');
 
     const GRAVITY = 1600; 
     const JUMP_FORCE = -650;
@@ -232,28 +253,32 @@
     const WIDTH = 400;
     const HEIGHT = 600;
 
-    let seedValue = 0;
+    let globalSeed = 0;
     let currentSeedText = "";
     let myAbsHeight = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
     let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
     let cameraY = 0; 
-    let highestWorldY = 0; // Seurataan maailman korkeinta kohtaa
+    let highestWorldY = 600; 
     let keys = {};
     let isGameOver = false, isRunning = false;
     let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
     let difficultyState = 0; 
 
-    function nextSeededRandom() {
-        seedValue = (seedValue * 16807) % 2147483647;
-        return (seedValue - 1) / 2147483646;
+    function seededRandom(worldY) {
+        let x = Math.sin(worldY + globalSeed) * 10000;
+        return x - Math.floor(x);
     }
 
     function updateLobbyUI() {
         let html = `<div class="player-entry"><span><span class="status-dot"></span>${player.name} (YOU)</span></div>`;
         if (opponent.active) html += `<div class="player-entry"><span><span class="status-dot"></span>${opponent.name}</span> <span style="font-size: 9px; opacity: 0.5;">READY</span></div>`;
         lobbyContent.innerHTML = html;
+        if (isConnected && !isHost) {
+            document.getElementById('skip-container').style.opacity = "0.5";
+            skipCheckbox.disabled = true;
+        }
     }
 
     function updateMyName() {
@@ -298,9 +323,10 @@
                 document.getElementById('seed-btn').style.display = 'none';
                 document.getElementById('guest-wait-info').style.display = 'block';
             } else if (isRunning) {
-                conn.send({ type: 'start-game', seed: currentSeedText });
+                conn.send({ type: 'start-game', seed: currentSeedText, skip: skipCheckbox.checked });
             }
             conn.send({ type: 'name-sync', name: player.name });
+            updateLobbyUI();
         });
         conn.on('close', () => {
             if (!isHost) hostLeftAlert.style.display = 'block';
@@ -308,7 +334,11 @@
         });
         conn.on('data', data => {
             if (data.type === 'name-sync') { opponent.name = data.name; opponent.active = true; updateLobbyUI(); }
-            if (data.type === 'start-game') { document.getElementById('seed-input').value = data.seed; initGame(data.seed); }
+            if (data.type === 'start-game') { 
+                document.getElementById('seed-input').value = data.seed; 
+                skipCheckbox.checked = data.skip;
+                initGame(data.seed, data.skip); 
+            }
             if (data.type === 'pos') { 
                 opponent.targetX = data.x; opponent.targetAbsY = data.absY; opponent.dead = data.dead; 
                 opponent.finalScore = data.currentScore; opponent.currentLiveScore = data.currentScore;
@@ -319,53 +349,83 @@
 
     function requestStart() {
         const seed = document.getElementById('seed-input').value || "MISSION_1";
-        if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed });
-        if (!isConnected || isHost) initGame(seed);
+        const skip = skipCheckbox.checked;
+        if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed, skip: skip });
+        if (!isConnected || isHost) initGame(seed, skip);
     }
 
-    function initGame(seedText) {
+    function initGame(seedText, skipToMoving) {
         currentSeedText = seedText;
         seedTag.innerText = seedText;
-        seedValue = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
-        if (seedValue <= 0) seedValue += 2147483646;
+        globalSeed = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
 
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
-        myAbsHeight = 0; cameraY = 0; isGameOver = false; isRunning = true; platforms = [];
-        highestWorldY = 600; 
-        opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0; difficultyState = 0;
-        opponent.x = 185; opponent.absY = 500; opponent.targetAbsY = 500;
+        isGameOver = false; isRunning = true; platforms = [];
         
-        scoreEl.innerText = "0"; specMsgEl.style.display = 'none'; hostLeftAlert.style.display = 'none';
+        // Skip-logiikka
+        if (skipToMoving) {
+            myAbsHeight = 1500;
+            cameraY = 15000;
+            highestWorldY = -15000 + 600;
+            difficultyState = 2; // Ohitetaan helpot tasot
+        } else {
+            myAbsHeight = 0;
+            cameraY = 0;
+            highestWorldY = 600; 
+            difficultyState = 0;
+        }
+
+        opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0;
+        opponent.x = 185; opponent.absY = (500 - cameraY);
+        
+        scoreEl.innerText = Math.floor(myAbsHeight); 
+        specMsgEl.style.display = 'none'; hostLeftAlert.style.display = 'none';
         document.getElementById('my-name-tag').innerText = player.name;
         document.getElementById('opp-name-tag').innerText = opponent.name;
         
         container.querySelectorAll('.platform').forEach(p => p.remove());
-        createPlatform(150, 550, 100);
-        for(let i=1; i<15; i++) spawnPlatformAt(HEIGHT - (i * 80));
+        
+        // Aloitusplatform pelaajan alle
+        createPlatform(150, (550 - cameraY), 100, 0);
+        
+        // Generoidaan alkualue
+        while (highestWorldY > -cameraY - 100) {
+            highestWorldY -= 80;
+            spawnPlatformAt(highestWorldY);
+        }
         
         overlay.style.display = 'none'; setupMenu.style.display = 'none'; wrapper.style.display = 'block';
         if (isConnected && !isHost) { document.getElementById('restart-area').style.display = 'none'; document.getElementById('guest-restart-info').style.display = 'block'; }
         requestAnimationFrame(gameLoop);
     }
 
-    function createPlatform(x, worldY, w) {
+    function createPlatform(x, worldY, w, mvSpeed) {
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
-        let mvSpeed = (difficultyState >= 2) ? (nextSeededRandom() > 0.5 ? 1 : -1) * (50 + (myAbsHeight/10)) : 0;
         platforms.push({ x, worldY, w, el, mvSpeed });
-        if (worldY < highestWorldY) highestWorldY = worldY;
     }
 
     function spawnPlatformAt(worldY) {
+        let rand = seededRandom(worldY);
+        let h = Math.abs(worldY);
+        let score = h / 10;
+        
         let minW = 60, maxW = 100;
-        if (myAbsHeight > 500) {
-            let shrink = Math.min(40, (myAbsHeight - 500) / 50); 
+        if (score > 500) {
+            let shrink = Math.min(40, (score - 500) / 50);
             minW -= shrink; maxW -= shrink;
         }
-        const w = nextSeededRandom() * (maxW - minW) + minW;
-        const x = nextSeededRandom() * (WIDTH - w);
-        createPlatform(x, worldY, w);
+        
+        let w = rand * (maxW - minW) + minW;
+        let x = rand * (WIDTH - w);
+        
+        let mvSpeed = 0;
+        if (score > 1500) {
+            mvSpeed = (rand > 0.5 ? 1 : -1) * (60 + (score / 25));
+        }
+        
+        createPlatform(x, worldY, w, mvSpeed);
     }
 
     function updateLiveLeaderboard() {
@@ -393,7 +453,6 @@
 
         updateLiveLeaderboard();
 
-        // Pehmeä vastustajan liikkeen päivitys
         if (opponent.active) {
             opponent.x += (opponent.targetX - opponent.x) * 0.2;
             opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2;
@@ -401,31 +460,30 @@
 
         if (!isGameOver) {
             updatePlayer(dt);
-            checkDifficulty();
+            if (difficultyState === 0 && myAbsHeight >= 500) { difficultyState = 1; showAnnounce("HARDER!"); }
+            else if (difficultyState === 1 && myAbsHeight >= 1500) { difficultyState = 2; showAnnounce("HARDER!"); }
         } else if (opponent.active && !opponent.dead) {
-            // SPEKTAATTORI: Seurataan vastustajaa pehmeästi
             let targetCameraY = (HEIGHT / 2) - opponent.absY;
             cameraY += (targetCameraY - cameraY) * 0.1;
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
             
-            // Luodaan uusia platformeja jos kaveri kiipeää ylemmäs kuin mihin platformit loppuvat
             while (highestWorldY > opponent.absY - HEIGHT) {
-                spawnPlatformAt(highestWorldY - 80);
+                highestWorldY -= 80;
+                spawnPlatformAt(highestWorldY);
             }
         }
 
-        // PÄIVITETÄÄN PLATFORMIEN LIIKE (Vaakasuuntainen)
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 p.x += p.mvSpeed * dt;
-                if (p.x + p.w > WIDTH || p.x < 0) p.mvSpeed *= -1;
+                if (p.x < 0) { p.x = 0; p.mvSpeed = Math.abs(p.mvSpeed); }
+                else if (p.x + p.w > WIDTH) { p.x = WIDTH - p.w; p.mvSpeed = -Math.abs(p.mvSpeed); }
             }
         });
 
-        // POISTETAAN PLATFORMIT JOTKA OVAT LIIAN ALHAALLA KAMERAAN NÄHDEN
         platforms = platforms.filter(p => {
-            if (p.worldY + cameraY > HEIGHT + 200) {
+            if (p.worldY + cameraY > HEIGHT + 300) {
                 p.el.remove();
                 return false;
             }
@@ -437,11 +495,6 @@
         
         render();
         requestAnimationFrame(gameLoop);
-    }
-
-    function checkDifficulty() {
-        if (difficultyState === 0 && myAbsHeight >= 500) { difficultyState = 1; showAnnounce("HARDER!"); }
-        else if (difficultyState === 1 && myAbsHeight >= 1500) { difficultyState = 2; showAnnounce("HARDER!"); }
     }
 
     function showAnnounce(msg) { announceEl.innerText = msg; announceEl.style.display = 'block'; setTimeout(() => announceEl.style.display = 'none', 3000); }
@@ -458,7 +511,6 @@
         if (player.x > WIDTH) player.x = -25;
         if (player.x < -25) player.x = WIDTH;
 
-        // TÖRMÄYKSET (Käytetään worldY + cameraY, koska se on platformin sijainti ruudulla)
         platforms.forEach(p => {
             let screenY = p.worldY + cameraY;
             if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > screenY && player.y + 25 < screenY + 15) player.vy = JUMP_FORCE;
@@ -471,9 +523,9 @@
             scoreEl.innerText = Math.floor(myAbsHeight);
             player.y = HEIGHT / 2; 
 
-            // Luodaan uusia platformeja maailmaan
             while (highestWorldY > -cameraY - 100) {
-                spawnPlatformAt(highestWorldY - 80);
+                highestWorldY -= 80;
+                spawnPlatformAt(highestWorldY);
             }
         }
         if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(myAbsHeight); }
