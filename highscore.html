@@ -459,11 +459,7 @@
             WAITING FOR HOST TO START
         </div>
 
-  //      <div class="checkbox-container" id="skip-container">
-  //          <input type="checkbox" id="skip-static-checkbox">
-  //          <label for="skip-static-checkbox">Skip Static (Start @ 1500m)</label>
-  //      </div>
-        
+       
         <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled style="width: 100%;">Launch Mission</button>
         <button class="secondary-btn" onclick="openRecords()" style="width: 100%; margin-top: 10px; border-color: gold; color: gold;">🏆 Global Hall of Fame</button>
 
@@ -609,7 +605,6 @@
     const lobbyContent = document.getElementById('lobby-list-content');
     const liveListGame = document.getElementById('live-list-content-game');
     const hostLeftAlert = document.getElementById('host-left-alert');
-    const skipCheckbox = document.getElementById('skip-static-checkbox');
     const startBtn = document.getElementById('main-start-btn');
     const connectBtn = document.getElementById('connect-btn');
     const nameInput = document.getElementById('name-input');
@@ -724,7 +719,6 @@
 
         // PIILOTETAAN SEED JA NÄYTETÄÄN ODOTUSVIESTI VÄLITTÖMÄSTI
         document.getElementById('seed-container').style.display = 'none';
-        document.getElementById('skip-container').style.display = 'none';
         document.getElementById('guest-waiting-msg').style.display = 'block';
 
         conn = peer.connect(id); 
@@ -738,7 +732,6 @@
             if (!isHost) { 
                 startBtn.style.display = 'none'; 
                 document.getElementById('seed-container').style.display = 'none';
-                document.getElementById('skip-container').style.display = 'none';
                 document.getElementById('guest-waiting-msg').style.display = 'block';
             } 
             conn.send({ type: 'name-sync', name: player.name }); 
@@ -752,7 +745,6 @@
             
             // Palautetaan näkyvyys jos palataan yksinpeliin
             document.getElementById('seed-container').style.display = 'flex';
-            document.getElementById('skip-container').style.display = 'flex';
             document.getElementById('guest-waiting-msg').style.display = 'none';
             if (!isHost) startBtn.style.display = 'block';
         });
@@ -765,8 +757,7 @@
             }
             if (data.type === 'start-game') { 
                 document.getElementById('seed-input').value = data.seed; 
-                skipCheckbox.checked = data.skip; 
-                initGame(data.seed, data.skip); 
+                initGame(data.seed); 
             }
             if (data.type === 'pos') { 
                 opponent.targetX = data.x; 
@@ -782,12 +773,11 @@
     function requestStart() {
         if (startBtn.disabled) return;
         const seed = document.getElementById('seed-input').value || "MISSION_1";
-        const skip = skipCheckbox.checked;
-        if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed, skip: skip });
-        if (!isConnected || isHost) initGame(seed, skip);
+        if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed });
+        if (!isConnected || isHost) initGame(seed);
     }
 
-    function initGame(seedText, skipToMoving) {
+    function initGame(seedText) {
         currentSeedText = seedText; 
         seedTag.innerText = seedText;
         globalSeed = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
@@ -802,17 +792,12 @@
         hasSubmitted = false; 
         window.hasCheckedRank = false;
         
-        if (skipToMoving) { 
-            window.myAbsHeight = 1500; 
-            cameraY = 15000; 
-            highestWorldY = -15000 + 600; 
-            difficultyState = 2; 
-        } else { 
+
             window.myAbsHeight = 0; 
             cameraY = 0; 
             highestWorldY = 600; 
             difficultyState = 0; 
-        }
+       
 
         opponent.dead = false; 
         opponent.finalScore = 0; 
@@ -1045,4 +1030,5 @@
 </script>
 </body>
 </html>
+
 
