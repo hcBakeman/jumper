@@ -255,7 +255,7 @@
     let globalSeed = 0;
     let currentSeedText = "";
     let myAbsHeight = 0; 
-    let totalGameTime = 0; // SYNCHRONIZED CLOCK
+    let totalGameTime = 0; 
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
     let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
@@ -343,8 +343,7 @@
                 opponent.targetX = data.x; opponent.targetAbsY = data.absY; opponent.dead = data.dead; 
                 opponent.finalScore = data.currentScore; opponent.currentLiveScore = data.currentScore;
                 opponent.active = true; 
-                // Sync clock with host
-                if (!isHost && data.time) totalGameTime = data.time;
+                if (!isHost && data.time !== undefined) totalGameTime = data.time;
             }
         });
     }
@@ -363,7 +362,7 @@
 
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
         isGameOver = false; isRunning = true; platforms = [];
-        totalGameTime = 0; // Reset clock
+        totalGameTime = 0; 
         
         if (skipToMoving) {
             myAbsHeight = 1500;
@@ -386,7 +385,7 @@
         document.getElementById('opp-name-tag').innerText = opponent.name;
         
         container.querySelectorAll('.platform').forEach(p => p.remove());
-        createPlatform(150, (550 - cameraY), 100, 0);
+        createPlatform(150, (550 - cameraY), 100, 0, 0);
         
         while (highestWorldY > -cameraY - 100) {
             highestWorldY -= 80;
@@ -398,12 +397,12 @@
         requestAnimationFrame(gameLoop);
     }
 
-    function createPlatform(x, worldY, w, mvSpeed) {
+    function createPlatform(x, worldY, w, mvSpeed, phase) {
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
-        // Store initial side and speed for deterministic math
-        platforms.push({ initialX: x, worldY, w, el, mvSpeed });
+        // TÄRKEÄÄ: Sijainti lasketaan aina deterministic-funktiolla
+        platforms.push({ worldY, w, el, mvSpeed, phase });
     }
 
     function spawnPlatformAt(worldY) {
@@ -416,12 +415,12 @@
             minW -= shrink; maxW -= shrink;
         }
         let w = rand * (maxW - minW) + minW;
-        let x = rand * (WIDTH - w);
         let mvSpeed = 0;
         if (score > 1500) {
             mvSpeed = (rand > 0.5 ? 1 : -1) * (60 + (score / 25));
         }
-        createPlatform(x, worldY, w, mvSpeed);
+        // Randia käytetään vaiheen (phase) määrittämiseen, jotta kaikki näkevät saman kohdan
+        createPlatform(0, worldY, w, mvSpeed, rand * Math.PI * 2);
     }
 
     function updateLiveLeaderboard() {
@@ -446,8 +445,22 @@
         totalGameTime += dt;
         updateLiveLeaderboard();
 
+        // Platform-päivitys DETERMINISTISESTI
+        platforms.forEach(p => {
+            if (p.mvSpeed !== 0) {
+                let range = WIDTH - p.w;
+                // Käytetään Siniä ajan ja vaiheen perusteella. Tämä on aina sama kaikilla!
+                let sinVal = Math.sin(totalGameTime * (p.mvSpeed / 100) + p.phase);
+                p.x = (sinVal + 1) / 2 * range;
+            } else {
+                // Staattiset platformit pysyvät siemenen määrittämässä kohdassa
+                let rand = seededRandom(p.worldY);
+                p.x = rand * (WIDTH - p.w);
+            }
+        });
+
         if (opponent.active) {
-            opponent.x += (opponent.targetX - opponent.x) * 0.3; // Snappier follow
+            opponent.x += (opponent.targetX - opponent.x) * 0.3; 
             opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.3;
         }
 
@@ -457,7 +470,7 @@
             else if (difficultyState === 1 && myAbsHeight >= 1500) { difficultyState = 2; showAnnounce("HARDER!"); }
         } else if (opponent.active && !opponent.dead) {
             let targetCameraY = (HEIGHT / 2) - opponent.absY;
-            cameraY += (targetCameraY - cameraY) * 0.2; // Faster camera chase in death cam
+            cameraY += (targetCameraY - cameraY) * 0.2; 
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
             
@@ -467,25 +480,8 @@
             }
         }
 
-        // DETERMINISTIC PLATFORM POSITIONING
-        platforms.forEach(p => {
-            if (p.mvSpeed !== 0) {
-                let range = WIDTH - p.w;
-                // Pos = cycle based on total game time
-                let t = (totalGameTime * Math.abs(p.mvSpeed)) / range;
-                // If initial direction was negative, offset the time
-                if (p.mvSpeed < 0) t += 1.0; 
-                
-                let progress = t % 2;
-                let pingPong = progress < 1 ? progress : 2 - progress;
-                p.x = pingPong * range;
-            } else {
-                p.x = p.initialX;
-            }
-        });
-
         platforms = platforms.filter(p => {
-            if (p.worldY + cameraY > HEIGHT + 600) { // Keep platforms longer for spectator
+            if (p.worldY + cameraY > HEIGHT + 600) { 
                 p.el.remove(); return false;
             }
             return true;
@@ -499,7 +495,7 @@
                 absY: (player.y - cameraY), 
                 dead: isGameOver, 
                 currentScore: Math.floor(myAbsHeight),
-                time: isHost ? totalGameTime : null // Host syncs the clock
+                time: isHost ? totalGameTime : undefined 
             });
         }
         
@@ -523,6 +519,7 @@
 
         platforms.forEach(p => {
             let screenY = p.worldY + cameraY;
+            // Käytetään platformin juuri laskettua p.x -arvoa törmäykseen
             if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > screenY && player.y + 25 < screenY + 15) player.vy = JUMP_FORCE;
         });
 
