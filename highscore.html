@@ -10,6 +10,7 @@
             --bg: #0d0221; 
             --warning: #ff0055; 
             --pulse-color: rgba(0, 242, 255, 0.03);
+            --gold: #ffd700;
         }
 
         body { 
@@ -35,81 +36,427 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        #setup-menu { margin-top: 40px; text-align: center; z-index: 10; width: 340px; }
-        
-        /* GLOBAL LEADERBOARD TYYLIT */
-        #global-leaderboard {
-            margin-top: 20px;
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 8px;
+        #setup-menu { 
+            margin-top: 40px; 
+            text-align: center; 
+            z-index: 10; 
+            width: 340px; 
+        }
+
+        #seed-leaderboard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 220px;
+            background: rgba(13, 2, 33, 0.9);
+            border-left: 3px solid var(--neon);
             padding: 15px;
-            border: 1px solid rgba(0, 242, 255, 0.2);
-            max-height: 180px;
+            border-radius: 0 8px 8px 0;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 5;
+            border: 1px solid rgba(0, 242, 255, 0.1);
+        }
+
+        #records-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 2, 33, 0.95);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #records-container {
+            width: 380px;
+            background: #050110;
+            border: 2px solid var(--neon);
+            padding: 20px;
+            border-radius: 12px;
+            max-height: 80vh;
             overflow-y: auto;
         }
-        .global-title { font-size: 11px; color: var(--neon); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; }
-        .global-entry { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-        .global-seed { opacity: 0.4; font-size: 9px; margin-left: 5px; font-style: italic; }
 
-        .game-wrapper { position: relative; display: none; margin-top: 20px; }
+        #congrats-msg {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .msg-wr { 
+            color: var(--gold); 
+            text-shadow: 0 0 15px var(--gold); 
+            animation: record-pulse 0.3s infinite alternate; 
+        }
+
+        .msg-top10 { 
+            color: var(--neon); 
+            text-shadow: 0 0 10px var(--neon); 
+        }
+
+        @keyframes record-pulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+
+        .global-title { 
+            font-size: 11px; 
+            color: var(--neon); 
+            letter-spacing: 2px; 
+            margin-bottom: 10px; 
+            text-transform: uppercase; 
+            font-weight: bold; 
+            border-bottom: 1px solid rgba(0,242,255,0.2); 
+            padding-bottom: 5px; 
+        }
+
+        .global-entry { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 11px; 
+            padding: 6px 4px; 
+            border-bottom: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        .game-wrapper { 
+            position: relative; 
+            display: none; 
+            margin-top: 20px; 
+        }
+
         #game-container { 
-            position: relative; width: 400px; height: 600px; border: 4px solid #1a1a2e; 
-            overflow: hidden; background: #050110; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            position: relative; 
+            width: 400px; 
+            height: 600px; 
+            border: 4px solid #1a1a2e; 
+            overflow: hidden; 
+            background: #050110; 
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
         #live-leaderboard {
-            position: absolute; top: 0; left: 420px; width: 180px;
-            background: rgba(26, 26, 46, 0.9); border-left: 3px solid var(--neon);
-            padding: 15px; border-radius: 0 8px 8px 0; font-family: 'Courier New', Courier, monospace; z-index: 500;
+            position: absolute;
+            top: 0;
+            left: -220px;
+            width: 180px;
+            background: rgba(26, 26, 46, 0.9);
+            border-right: 3px solid var(--neon);
+            padding: 15px;
+            border-radius: 8px 0 0 8px;
+            font-family: 'Courier New', Courier, monospace;
+            z-index: 500;
         }
 
-        .leaderboard-title { font-size: 10px; color: var(--neon); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; border-bottom: 1px solid rgba(0, 242, 255, 0.2); padding-bottom: 5px; }
-        .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; }
-        #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
-        #opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.8; display: none; }
-        .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
-        .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; z-index: 10; }
-        #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; }
-        .ui-element { font-size: 18px; text-shadow: 0 0 5px rgba(0,0,0,0.5); }
-        .live-entry { margin-bottom: 8px; font-size: 14px; display: flex; flex-direction: column; }
-        .live-score { font-size: 18px; font-weight: bold; }
-        #host-left-alert { position: absolute; top: 0; width: 100%; background: var(--warning); color: white; text-align: center; font-size: 12px; font-weight: bold; padding: 4px 0; z-index: 1000; display: none; }
-        #announce { position: absolute; width: 100%; top: 100px; text-align: center; color: var(--warning); font-size: 40px; font-weight: 900; display: none; z-index: 150; text-shadow: 0 0 20px var(--warning); letter-spacing: 5px; }
-        #spec-msg { position: absolute; width: 100%; top: 80px; text-align: center; color: var(--warning); display: none; font-weight: bold; z-index: 1000; text-transform: uppercase; font-size: 16px; letter-spacing: 2px; background: rgba(0,0,0,0.7); padding: 12px 0; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1100; }
-        #player-list { background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 10px; margin: 15px 0; text-align: left; }
-        .player-entry { font-size: 13px; margin: 4px 0; display: flex; justify-content: space-between; }
-        .status-dot { width: 8px; height: 8px; background: #00ff00; border-radius: 50%; display: inline-block; margin-right: 8px; }
-        .score-board { margin: 15px 0; width: 80%; border-collapse: collapse; }
-        .score-board td { padding: 8px; border-bottom: 1px solid #333; }
-        .winner { color: gold; font-weight: bold; text-shadow: 0 0 10px gold; }
-        .start-btn { padding: 12px 24px; background: var(--neon); border: none; font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px; box-shadow: 0 0 10px var(--neon); text-transform: uppercase; }
-        .secondary-btn { padding: 8px 16px; background: transparent; border: 1px solid #5465ff; color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px; }
-        input[type="text"] { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
-        #my-id-container { font-size: 11px; opacity: 0.8; margin-bottom: 15px; cursor: pointer; padding: 5px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.2); }
-        .checkbox-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 15px 0; padding: 8px; background: rgba(0, 242, 255, 0.05); border-radius: 8px; border: 1px solid rgba(0, 242, 255, 0.1); }
-        .checkbox-container input { cursor: pointer; width: 18px; height: 18px; accent-color: var(--neon); }
-        .checkbox-container label { font-size: 11px; color: var(--neon); cursor: pointer; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .leaderboard-title { 
+            font-size: 10px; 
+            color: var(--neon); 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid rgba(0, 242, 255, 0.2); 
+            padding-bottom: 5px; 
+        }
+
+        .player-box { 
+            position: absolute; 
+            width: 25px; 
+            height: 25px; 
+            border-radius: 4px; 
+            z-index: 20; 
+        }
+
+        #player { 
+            background: var(--neon); 
+            box-shadow: 0 0 15px var(--neon); 
+        }
+
+        #opponent { 
+            background: #ff00ff; 
+            box-shadow: 0 0 15px #ff00ff; 
+            opacity: 0.8; 
+            display: none; 
+        }
+
+        .name-tag { 
+            position: absolute; 
+            width: 100px; 
+            text-align: center; 
+            left: -37.5px; 
+            top: -20px; 
+            font-size: 10px; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            white-space: nowrap; 
+        }
+
+        .platform { 
+            position: absolute; 
+            height: 10px; 
+            background: #5465ff; 
+            box-shadow: 0 0 10px #5465ff; 
+            border-radius: 5px; 
+            z-index: 10; 
+        }
+
+        #ui { 
+            position: absolute; 
+            top: 10px; 
+            left: 10px; 
+            right: 10px; 
+            z-index: 100; 
+            font-weight: bold; 
+            display: flex; 
+            justify-content: space-between; 
+        }
+
+        .ui-element { 
+            font-size: 18px; 
+            text-shadow: 0 0 5px rgba(0,0,0,0.5); 
+        }
+
+        .live-entry { 
+            margin-bottom: 8px; 
+            font-size: 14px; 
+            display: flex; 
+            flex-direction: column; 
+        }
+
+        .live-score { 
+            font-size: 18px; 
+            font-weight: bold; 
+        }
+
+        #host-left-alert { 
+            position: absolute; 
+            top: 0; 
+            width: 100%; 
+            background: var(--warning); 
+            color: white; 
+            text-align: center; 
+            font-size: 12px; 
+            font-weight: bold; 
+            padding: 4px 0; 
+            z-index: 1000; 
+            display: none; 
+        }
+
+        #announce { 
+            position: absolute; 
+            width: 100%; 
+            top: 100px; 
+            text-align: center; 
+            color: var(--warning); 
+            font-size: 40px; 
+            font-weight: 900; 
+            display: none; 
+            z-index: 150; 
+            text-shadow: 0 0 20px var(--warning); 
+            letter-spacing: 5px; 
+        }
+
+        #spec-msg { 
+            position: absolute; 
+            width: 100%; 
+            top: 80px; 
+            text-align: center; 
+            color: var(--warning); 
+            display: none; 
+            font-weight: bold; 
+            z-index: 1000; 
+            text-transform: uppercase; 
+            font-size: 16px; 
+            letter-spacing: 2px; 
+            background: rgba(0,0,0,0.7); 
+            padding: 12px 0; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); 
+        }
+        
+        #overlay { 
+            position: absolute; 
+            inset: 0; 
+            background: rgba(0,0,0,0.95); 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            z-index: 1100; 
+        }
+        
+        #player-list { 
+            background: rgba(255, 255, 255, 0.05); 
+            border-radius: 8px; 
+            padding: 10px; 
+            margin: 15px 0; 
+            text-align: left; 
+        }
+
+        .player-entry { 
+            font-size: 13px; 
+            margin: 4px 0; 
+            display: flex; 
+            justify-content: space-between; 
+        }
+
+        .status-dot { 
+            width: 8px; 
+            height: 8px; 
+            background: #00ff00; 
+            border-radius: 50%; 
+            display: inline-block; 
+            margin-right: 8px; 
+        }
+
+        .score-board { 
+            margin: 10px 0; 
+            width: 80%; 
+            border-collapse: collapse; 
+        }
+
+        .score-board td { 
+            padding: 6px; 
+            border-bottom: 1px solid #333; 
+            font-size: 14px; 
+        }
+
+        .winner { 
+            color: gold; 
+            font-weight: bold; 
+            text-shadow: 0 0 10px gold; 
+        }
+        
+        .start-btn { 
+            padding: 12px 24px; 
+            background: var(--neon); 
+            border: none; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin: 5px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 10px var(--neon); 
+            text-transform: uppercase; 
+        }
+
+        .start-btn:disabled { 
+            background: #333; 
+            box-shadow: none; 
+            cursor: not-allowed; 
+            opacity: 0.5; 
+        }
+        
+        .secondary-btn { 
+            padding: 8px 16px; 
+            background: transparent; 
+            border: 1px solid #5465ff; 
+            color: #5465ff; 
+            cursor: pointer; 
+            border-radius: 8px; 
+            text-transform: uppercase; 
+            font-size: 11px; 
+            margin: 5px; 
+        }
+
+        input[type="text"] { 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid #333; 
+            background: #1a1a2e; 
+            color: white; 
+            margin-bottom: 5px; 
+            text-align: center; 
+            width: 100%; 
+            box-sizing: border-box; 
+            font-weight: bold; 
+        }
+
+        input[type="text"]:focus { 
+            border-color: var(--neon); 
+            outline: none; 
+        }
+        
+        #my-id-container { 
+            font-size: 11px; 
+            opacity: 0.8; 
+            margin-bottom: 15px; 
+            cursor: pointer; 
+            padding: 5px; 
+            border-radius: 4px; 
+            border: 1px dashed rgba(255,255,255,0.2); 
+        }
+
+        .checkbox-container { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px; 
+            margin: 15px 0; 
+            padding: 8px; 
+            background: rgba(0, 242, 255, 0.05); 
+            border-radius: 8px; 
+            border: 1px solid rgba(0, 242, 255, 0.1); 
+        }
+
+        .checkbox-container input { 
+            cursor: pointer; 
+            width: 18px; 
+            height: 18px; 
+            accent-color: var(--neon); 
+        }
+
+        .checkbox-container label { 
+            font-size: 11px; 
+            color: var(--neon); 
+            cursor: pointer; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
     </style>
 </head>
 <body>
 
+<div id="records-modal">
+    <div id="records-container">
+        <div class="global-title" style="font-size: 18px; margin-bottom: 15px;">Global Hall of Fame</div>
+        <div id="modal-list-content">Loading...</div>
+        <button class="secondary-btn" style="width: 100%; margin-top: 15px;" onclick="closeRecords()">Close</button>
+    </div>
+</div>
+
 <div id="host-left-alert">CONNECTION LOST: HOST LEFT THE SESSION</div>
 
 <div id="main-body" class="pulsing">
+    <div id="seed-leaderboard">
+        <div class="global-title">Seed <span id="seed-title-tag">---</span> Records</div>
+        <div id="seed-list-content">Syncing...</div>
+    </div>
+
     <div id="setup-menu">
         <h1 style="color: var(--neon); letter-spacing: 4px; margin-bottom: 5px;">NEON REBOUND</h1>
         
-        <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+            <div id="name-error" style="color: var(--warning); font-size: 9px; margin-top: 4px; display: block;">NAME REQUIRED TO LAUNCH</div>
+        </div>
         
         <div id="player-list">
             <div style="font-size: 10px; color: #5465ff; margin-bottom: 5px; font-weight: bold;">LOBBY PILOTS:</div>
             <div id="lobby-list-content"></div>
         </div>
 
-        <div style="display: flex; gap: 5px;">
-            <input type="text" id="seed-input" placeholder="MAP SEED">
-            <button class="secondary-btn" onclick="generateNewSeed()" id="seed-btn" style="white-space: nowrap;">New Seed</button>
+        <div id="seed-container" style="display: flex; gap: 5px; width: 100%; flex-direction: column;">
+            <div id="seed-label" style="font-size: 10px; color: var(--neon); text-align: left; margin-top: 5px; font-weight: bold;">MAP SEED:</div>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" id="seed-input" placeholder="MISSION_1" oninput="updateSeedSidebar()">		
+                <button class="secondary-btn" onclick="generateNewSeed()" id="seed-btn" style="white-space: nowrap;">New Seed</button>
+            </div>
+        </div>
+
+        <div id="guest-waiting-msg" style="display: none; color: var(--neon); font-size: 14px; font-weight: bold; margin: 20px 0; letter-spacing: 1px; border: 1px dashed var(--neon); padding: 10px; border-radius: 8px; text-align: center;">
+            WAITING FOR HOST TO START
         </div>
 
         <div class="checkbox-container" id="skip-container">
@@ -117,20 +464,16 @@
             <label for="skip-static-checkbox">Skip Static (Start @ 1500m)</label>
         </div>
         
-        <button class="start-btn" id="main-start-btn" onclick="requestStart()">Launch Mission</button>
+        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled style="width: 100%;">Launch Mission</button>
+        <button class="secondary-btn" onclick="openRecords()" style="width: 100%; margin-top: 10px; border-color: gold; color: gold;">🏆 Global Hall of Fame</button>
 
-        <div id="global-leaderboard">
-            <div class="global-title">World Records</div>
-            <div id="global-list-content">Connecting to Neural Network...</div>
-        </div>
-        
         <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
             <div id="my-id-container" onclick="copyIdToClipboard()">
                 <span id="my-id-value" style="font-weight: bold; color: var(--neon);">CONNECTING...</span>
                 <span id="copy-hint" style="display:block; font-size: 9px;">(Click to copy ID)</span>
             </div>
             <input type="text" id="join-id" placeholder="PASTE FRIEND'S ID">
-            <button style="padding: 6px 15px; cursor: pointer; width: 100%; margin-top: 5px;" onclick="connectToPeer()">CONNECT TO PILOT</button>
+            <button id="connect-btn" style="padding: 6px 15px; cursor: pointer; width: 100%; margin-top: 5px;" onclick="connectToPeer()" disabled>CONNECT TO PILOT</button>
         </div>
     </div>
 
@@ -148,13 +491,19 @@
             <div id="opponent" class="player-box"><div class="name-tag" id="opp-name-tag"></div></div>
             
             <div id="overlay">
-                <h1 style="color: var(--warning); margin: 0;">MISSION FAILED</h1>
+                <div id="congrats-msg"></div>
+                <h1 style="color: var(--warning); margin: 0; font-size: 28px;">MISSION FAILED</h1>
                 <table class="score-board" id="final-leaderboard"></table>
+                
                 <div id="restart-area">
                     <button class="start-btn" onclick="requestStart()">Rematch</button>
                     <button class="secondary-btn" onclick="backToLobby()" style="color: white; border-color: white;">Back to Lobby</button>
                 </div>
-                <p id="guest-restart-info" style="display:none; color: var(--neon);">Waiting for Host...</p>
+
+                <div id="guest-restart-info" style="display:none; text-align: center;">
+                    <p style="color: var(--neon); font-weight: bold; margin-bottom: 10px;">Waiting for Host...</p>
+                    <button class="secondary-btn" onclick="backToLobby()" style="color: white; border-color: white; width: 100%;">Return to Lobby</button>
+                </div>
             </div>
         </div>
 
@@ -167,79 +516,83 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, push, set, onValue, query, orderByChild, limitToLast, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, push, set, onValue, query, orderByChild, limitToLast, serverTimestamp, equalTo } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     const firebaseConfig = {
-      apiKey: "AIzaSyANTViVdgV4KhM8FsyYqLIwMw8OAI-fGko",
-      authDomain: "neon-rebound-pro.firebaseapp.com",
-      databaseURL: "https://neon-rebound-pro-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "neon-rebound-pro",
-      storageBucket: "neon-rebound-pro.firebasestorage.app",
-      messagingSenderId: "188389620245",
-      appId: "1:188389620245:web:1fffebc4557dc17686ec1c"
+        apiKey: "AIzaSyANTViVdgV4KhM8FsyYqLIwMw8OAI-fGko",
+        authDomain: "neon-rebound-pro.firebaseapp.com",
+        databaseURL: "https://neon-rebound-pro-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "neon-rebound-pro",
+        storageBucket: "neon-rebound-pro.firebasestorage.app",
+        messagingSenderId: "188389620245",
+        appId: "1:188389620245:web:1fffebc4557dc17686ec1c"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const auth = getAuth();
 
-    const BLACKLIST = ["paska", "huora", "hitler", "nazi", "neekeri", "nger", "n1ger","neger", "niger"];
-
-    function isClean(text) {
-        if(!text) return true;
-        const lower = text.toLowerCase();
-        return !BLACKLIST.some(word => lower.includes(word));
-    }
-
     signInAnonymously(auth).then(() => {
-        loadGlobalLeaderboard();
+        updateSeedSidebar();
     }).catch(console.error);
 
-    // Funktio tulosten lähettämiseen (kutsutaan pelimoottorista)
+    window.openRecords = function() {
+        document.getElementById('records-modal').style.display = 'flex';
+        const scoresRef = query(ref(db, 'highscores'), orderByChild('score'), limitToLast(20));
+        onValue(scoresRef, (snapshot) => {
+            const list = [];
+            snapshot.forEach(child => { list.push(child.val()); });
+            list.sort((a, b) => b.score - a.score);
+            let html = list.map((e, i) => `<div class="global-entry"><span>${i+1}. ${e.name}</span><span>${e.score}<small style="opacity:0.4;font-size:8px;"> @${e.seed}</small></span></div>`).join('');
+            document.getElementById('modal-list-content').innerHTML = html || "No records yet.";
+        }, { onlyOnce: true });
+    };
+
+    window.closeRecords = () => document.getElementById('records-modal').style.display = 'none';
+
+    window.updateSeedSidebar = function() {
+        const seed = document.getElementById('seed-input').value || "MISSION_1";
+        document.getElementById('seed-title-tag').innerText = seed;
+        const seedRef = query(ref(db, 'highscores'), orderByChild('seed'), equalTo(seed));
+        
+        onValue(seedRef, (snapshot) => {
+            const list = [];
+            snapshot.forEach(child => { list.push(child.val()); });
+            list.sort((a, b) => b.score - a.score);
+
+            if (window.isGameOver && !window.hasCheckedRank) {
+                const myScore = Math.floor(window.myAbsHeight);
+                const congrats = document.getElementById('congrats-msg');
+                const myRank = list.findIndex(e => e.uid === auth.currentUser.uid && Math.abs(e.score - myScore) < 2) + 1;
+
+                if (myRank === 1) {
+                    congrats.innerHTML = "🏆 NEW SEED WORLD RECORD! 🏆";
+                    congrats.className = "msg-wr";
+                    congrats.style.display = 'block';
+                } else if (myRank > 1 && myRank <= 10) {
+                    congrats.innerHTML = `GREAT JOB! TOP 10 REACHED (#${myRank})`;
+                    congrats.className = "msg-top10";
+                    congrats.style.display = 'block';
+                }
+                window.hasCheckedRank = true;
+            }
+
+            let html = list.slice(0, 10).map((e, i) => `<div class="global-entry"><span>${i+1}. ${e.name}</span><span>${e.score}</span></div>`).join('');
+            document.getElementById('seed-list-content').innerHTML = html || "First pilot on this seed!";
+        });
+    };
+
     window.submitGlobalScore = function(name, score, seed) {
         const user = auth.currentUser;
         if (!user || score < 10) return;
-
-        if (!isClean(name) || !isClean(seed)) {
-            alert("Forbidden words detected!");
-            return;
-        }
-
         const uid = user.uid;
         const cooldownRef = ref(db, 'user_cooldowns/' + uid);
 
-        // Spam-suojaus (30s)
         set(cooldownRef, serverTimestamp()).then(() => {
-            const scoresRef = ref(db, 'highscores');
-            push(scoresRef, {
-                name: name,
-                score: score,
-                seed: seed,
-                uid: uid,
-                timestamp: serverTimestamp()
-            });
+            push(ref(db, 'highscores'), { name, score, seed, uid, timestamp: serverTimestamp() });
         }).catch(() => console.warn("Rate limit."));
     };
-
-    function loadGlobalLeaderboard() {
-        const scoresRef = query(ref(db, 'highscores'), orderByChild('score'), limitToLast(8));
-        onValue(scoresRef, (snapshot) => {
-            const data = snapshot.val();
-            const list = [];
-            for (let id in data) list.push(data[id]);
-            list.sort((a, b) => b.score - a.score);
-            
-            let html = "";
-            list.forEach((entry, i) => {
-                html += `<div class="global-entry">
-                    <span>${i+1}. ${entry.name}</span>
-                    <span>${entry.score}<span class="global-seed">@${entry.seed}</span></span>
-                </div>`;
-            });
-            document.getElementById('global-list-content').innerHTML = html || "No records yet.";
-        });
-    }
 </script>
 
 <script>
@@ -257,6 +610,10 @@
     const liveListGame = document.getElementById('live-list-content-game');
     const hostLeftAlert = document.getElementById('host-left-alert');
     const skipCheckbox = document.getElementById('skip-static-checkbox');
+    const startBtn = document.getElementById('main-start-btn');
+    const connectBtn = document.getElementById('connect-btn');
+    const nameInput = document.getElementById('name-input');
+    const nameError = document.getElementById('name-error');
 
     const GRAVITY = 1600; 
     const JUMP_FORCE = -650;
@@ -266,93 +623,164 @@
 
     let globalSeed = 0;
     let currentSeedText = "";
-    let myAbsHeight = 0; 
-    let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
-    let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
+    window.myAbsHeight = 0; 
+    let player = { x: 185, y: 500, vx: 0, vy: 0, name: "", finalScore: 0 };
+    let opponent = { 
+        x: 185, 
+        absY: 500, 
+        targetX: 185, 
+        targetAbsY: 500, 
+        dead: false, 
+        active: false, 
+        name: "CO-PILOT", 
+        finalScore: 0, 
+        currentLiveScore: 0 
+    };
     let platforms = [];
     let cameraY = 0; 
     let highestWorldY = 600; 
     let keys = {};
-    let isGameOver = false, isRunning = false;
+    window.isGameOver = false; 
+    window.hasCheckedRank = false;
+    let isRunning = false;
     let lastTime = 0, isHost = false, isConnected = false, myPeerId = "";
     let difficultyState = 0;
     let hasSubmitted = false;
 
-    function seededRandom(worldY) {
-        let x = Math.sin(worldY + globalSeed) * 10000;
-        return x - Math.floor(x);
-    }
-
     function updateLobbyUI() {
-        let html = `<div class="player-entry"><span><span class="status-dot"></span>${player.name} (YOU)</span></div>`;
-        if (opponent.active) html += `<div class="player-entry"><span><span class="status-dot"></span>${opponent.name}</span> <span style="font-size: 9px; opacity: 0.5;">READY</span></div>`;
+        let html = `<div class="player-entry"><span><span class="status-dot"></span>${player.name || "???"} (YOU)</span></div>`;
+        if (opponent.active) {
+            html += `<div class="player-entry"><span><span class="status-dot"></span>${opponent.name}</span> <span style="font-size: 9px; opacity: 0.5;">READY</span></div>`;
+        }
         lobbyContent.innerHTML = html;
+        
+        const isNameValid = player.name.trim().length > 0 && player.name !== "PILOT";
+
+        if (isNameValid) { 
+            startBtn.disabled = false; 
+            connectBtn.disabled = false;
+            nameError.style.display = 'none'; 
+        } else { 
+            startBtn.disabled = true; 
+            connectBtn.disabled = true;
+            nameError.style.display = 'block'; 
+        }
     }
 
-    function updateMyName() {
-        player.name = document.getElementById('name-input').value || "PILOT";
-        updateLobbyUI();
-        if (isConnected) conn.send({ type: 'name-sync', name: player.name });
+    function updateMyName() { 
+        player.name = nameInput.value.trim(); 
+        updateLobbyUI(); 
+        if (isConnected) conn.send({ type: 'name-sync', name: player.name }); 
     }
 
     function generateNewSeed() {
         if (!isHost && isConnected) return;
         document.getElementById('seed-input').value = Math.random().toString(36).substring(7).toUpperCase();
+        window.updateSeedSidebar();
     }
 
-    function backToLobby() {
-        isRunning = false; wrapper.style.display = 'none';
-        setupMenu.style.display = 'block'; overlay.style.display = 'none';
-        hostLeftAlert.style.display = 'none';
+    function backToLobby() { 
+        isRunning = false; 
+        wrapper.style.display = 'none'; 
+        setupMenu.style.display = 'block'; 
+        overlay.style.display = 'none'; 
+        hostLeftAlert.style.display = 'none'; 
     }
 
-    let peer = new Peer();
+    let peer = new Peer(); 
     let conn;
-    peer.on('open', id => { myPeerId = id; document.getElementById('my-id-value').innerText = "YOUR ID: " + id; updateLobbyUI(); });
-    peer.on('connection', c => { conn = c; isHost = true; isConnected = true; setupConnection(); });
 
-    function copyIdToClipboard() {
-        if (!myPeerId) return;
-        navigator.clipboard.writeText(myPeerId);
-        document.getElementById('copy-hint').innerText = "COPIED!";
-        setTimeout(() => document.getElementById('copy-hint').innerText = "(Click to copy ID)", 2000);
+    peer.on('open', id => { 
+        myPeerId = id; 
+        document.getElementById('my-id-value').innerText = "YOUR ID: " + id; 
+        updateLobbyUI(); 
+    });
+
+    peer.on('connection', c => { 
+        conn = c; 
+        isHost = true; 
+        isConnected = true; 
+        setupConnection(); 
+    });
+
+    function copyIdToClipboard() { 
+        if (!myPeerId) return; 
+        navigator.clipboard.writeText(myPeerId); 
+        document.getElementById('copy-hint').innerText = "COPIED!"; 
+        setTimeout(() => document.getElementById('copy-hint').innerText = "(Click to copy ID)", 2000); 
     }
 
-    function connectToPeer() {
-        const id = document.getElementById('join-id').value.trim();
-        if(!id) return;
-        conn = peer.connect(id); isHost = false; isConnected = true; setupConnection();
+    function connectToPeer() { 
+        const id = document.getElementById('join-id').value.trim(); 
+        const myName = player.name.trim();
+
+        if (!myName || myName === "PILOT" || myName === "") {
+            alert("ERROR: YOU MUST ENTER A PILOT NAME BEFORE CONNECTING!");
+            nameInput.focus();
+            return;
+        }
+
+        if(!id) return; 
+
+        // PIILOTETAAN SEED JA NÄYTETÄÄN ODOTUSVIESTI VÄLITTÖMÄSTI
+        document.getElementById('seed-container').style.display = 'none';
+        document.getElementById('skip-container').style.display = 'none';
+        document.getElementById('guest-waiting-msg').style.display = 'block';
+
+        conn = peer.connect(id); 
+        isHost = false; 
+        isConnected = true; 
+        setupConnection(); 
     }
 
     function setupConnection() {
-        conn.on('open', () => {
-            if (!isHost) {
-                document.getElementById('main-start-btn').style.display = 'none';
-                document.getElementById('seed-btn').style.display = 'none';
-            }
-            conn.send({ type: 'name-sync', name: player.name });
-            updateLobbyUI();
+        conn.on('open', () => { 
+            if (!isHost) { 
+                startBtn.style.display = 'none'; 
+                document.getElementById('seed-container').style.display = 'none';
+                document.getElementById('skip-container').style.display = 'none';
+                document.getElementById('guest-waiting-msg').style.display = 'block';
+            } 
+            conn.send({ type: 'name-sync', name: player.name }); 
+            updateLobbyUI(); 
         });
-        conn.on('close', () => {
-            if (!isHost) hostLeftAlert.style.display = 'block';
-            opponent.active = false; updateLobbyUI();
+
+        conn.on('close', () => { 
+            if (!isHost) hostLeftAlert.style.display = 'block'; 
+            opponent.active = false; 
+            updateLobbyUI(); 
+            
+            // Palautetaan näkyvyys jos palataan yksinpeliin
+            document.getElementById('seed-container').style.display = 'flex';
+            document.getElementById('skip-container').style.display = 'flex';
+            document.getElementById('guest-waiting-msg').style.display = 'none';
+            if (!isHost) startBtn.style.display = 'block';
         });
+
         conn.on('data', data => {
-            if (data.type === 'name-sync') { opponent.name = data.name; opponent.active = true; updateLobbyUI(); }
+            if (data.type === 'name-sync') { 
+                opponent.name = data.name; 
+                opponent.active = true; 
+                updateLobbyUI(); 
+            }
             if (data.type === 'start-game') { 
                 document.getElementById('seed-input').value = data.seed; 
-                skipCheckbox.checked = data.skip;
+                skipCheckbox.checked = data.skip; 
                 initGame(data.seed, data.skip); 
             }
             if (data.type === 'pos') { 
-                opponent.targetX = data.x; opponent.targetAbsY = data.absY; opponent.dead = data.dead; 
-                opponent.finalScore = data.currentScore; opponent.currentLiveScore = data.currentScore;
+                opponent.targetX = data.x; 
+                opponent.targetAbsY = data.absY; 
+                opponent.dead = data.dead; 
+                opponent.finalScore = data.currentScore; 
+                opponent.currentLiveScore = data.currentScore; 
                 opponent.active = true; 
             }
         });
     }
 
     function requestStart() {
+        if (startBtn.disabled) return;
         const seed = document.getElementById('seed-input').value || "MISSION_1";
         const skip = skipCheckbox.checked;
         if (isConnected && isHost) conn.send({ type: 'start-game', seed: seed, skip: skip });
@@ -360,94 +788,141 @@
     }
 
     function initGame(seedText, skipToMoving) {
-        currentSeedText = seedText;
+        currentSeedText = seedText; 
         seedTag.innerText = seedText;
         globalSeed = seedText.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
-        player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
-        isGameOver = false; isRunning = true; platforms = []; hasSubmitted = false;
+        player.x = 185; 
+        player.y = 500; 
+        player.vx = 0; 
+        player.vy = 0; 
+        player.finalScore = 0;
+        window.isGameOver = false; 
+        isRunning = true; 
+        platforms = []; 
+        hasSubmitted = false; 
+        window.hasCheckedRank = false;
         
-        if (skipToMoving) {
-            myAbsHeight = 1500; cameraY = 15000; highestWorldY = -15000 + 600; difficultyState = 2;
-        } else {
-            myAbsHeight = 0; cameraY = 0; highestWorldY = 600; difficultyState = 0;
+        if (skipToMoving) { 
+            window.myAbsHeight = 1500; 
+            cameraY = 15000; 
+            highestWorldY = -15000 + 600; 
+            difficultyState = 2; 
+        } else { 
+            window.myAbsHeight = 0; 
+            cameraY = 0; 
+            highestWorldY = 600; 
+            difficultyState = 0; 
         }
 
-        opponent.dead = false; opponent.finalScore = 0; opponent.currentLiveScore = 0;
-        opponent.x = 185; opponent.absY = (500 - cameraY);
-        scoreEl.innerText = Math.floor(myAbsHeight); 
-        specMsgEl.style.display = 'none'; hostLeftAlert.style.display = 'none';
+        opponent.dead = false; 
+        opponent.finalScore = 0; 
+        opponent.currentLiveScore = 0;
+        opponent.x = 185; 
+        opponent.absY = (500 - cameraY);
+        scoreEl.innerText = Math.floor(window.myAbsHeight); 
+        specMsgEl.style.display = 'none'; 
+        hostLeftAlert.style.display = 'none';
+        document.getElementById('congrats-msg').style.display = 'none';
+        
         document.getElementById('my-name-tag').innerText = player.name;
         document.getElementById('opp-name-tag').innerText = opponent.name;
+        
         container.querySelectorAll('.platform').forEach(p => p.remove());
         createPlatform(150, (550 - cameraY), 100, 0);
-        while (highestWorldY > -cameraY - 100) { highestWorldY -= 80; spawnPlatformAt(highestWorldY); }
-        overlay.style.display = 'none'; setupMenu.style.display = 'none'; wrapper.style.display = 'block';
-        if (isConnected && !isHost) { document.getElementById('restart-area').style.display = 'none'; document.getElementById('guest-restart-info').style.display = 'block'; }
+        
+        while (highestWorldY > -cameraY - 100) { 
+            highestWorldY -= 80; 
+            spawnPlatformAt(highestWorldY); 
+        }
+        
+        overlay.style.display = 'none'; 
+        setupMenu.style.display = 'none'; 
+        wrapper.style.display = 'block';
+        window.updateSeedSidebar();
+
         requestAnimationFrame(gameLoop);
     }
 
     function createPlatform(x, worldY, w, mvSpeed) {
-        const el = document.createElement('div');
-        el.className = 'platform'; el.style.width = w + 'px';
-        container.appendChild(el);
+        const el = document.createElement('div'); 
+        el.className = 'platform'; 
+        el.style.width = w + 'px';
+        container.appendChild(el); 
         platforms.push({ x, worldY, w, el, mvSpeed });
     }
 
     function spawnPlatformAt(worldY) {
-        let rand = seededRandom(worldY);
-        let h = Math.abs(worldY);
+        let rand = Math.sin(worldY + globalSeed) * 10000; 
+        rand = rand - Math.floor(rand);
+        let h = Math.abs(worldY); 
         let score = h / 10;
         let minW = 60, maxW = 100;
-        if (score > 500) { let shrink = Math.min(40, (score - 500) / 50); minW -= shrink; maxW -= shrink; }
+
+        if (score > 500) { 
+            let shrink = Math.min(40, (score - 500) / 50); 
+            minW -= shrink; 
+            maxW -= shrink; 
+        }
+
         let w = rand * (maxW - minW) + minW;
         let x = rand * (WIDTH - w);
-        let mvSpeed = 0;
-        if (score > 1500) { mvSpeed = (rand > 0.5 ? 1 : -1) * (60 + (score / 25)); }
+        let mvSpeed = 0; 
+
+        if (score > 1500) { 
+            mvSpeed = (rand > 0.5 ? 1 : -1) * (60 + (score / 25)); 
+        }
         createPlatform(x, worldY, w, mvSpeed);
     }
 
     function updateLiveLeaderboard() {
-        let pList = [{name: player.name, score: Math.floor(myAbsHeight), dead: isGameOver}];
+        let pList = [{name: player.name, score: Math.floor(window.myAbsHeight), dead: window.isGameOver}];
         if(opponent.active) pList.push({name: opponent.name, score: opponent.currentLiveScore, dead: opponent.dead});
         pList.sort((a,b) => b.score - a.score);
-        let html = "";
-        pList.forEach(p => {
+        liveListGame.innerHTML = pList.map(p => {
             let color = p.name === player.name ? "var(--neon)" : "#ff00ff";
             let status = p.dead ? '<span style="color:red; font-size:9px;">[OUT]</span> ' : '<span style="color:#00ff00; font-size:9px;">[LIVE]</span> ';
-            html += `<div class="live-entry"><span style="font-size:10px; color:${color}; opacity:0.8;">${status}${p.name}</span><span class="live-score" style="color:${color}">${p.score}</span></div>`;
-        });
-        liveListGame.innerHTML = html;
+            return `<div class="live-entry"><span style="font-size:10px; color:${color}; opacity:0.8;">${status}${p.name}</span><span class="live-score" style="color:${color}">${p.score}</span></div>`;
+        }).join('');
     }
 
     function gameLoop(timestamp) {
         if (!isRunning) return;
-        let dt = (timestamp - lastTime) / 1000;
+        let dt = (timestamp - lastTime) / 1000; 
         lastTime = timestamp;
         if (dt > 0.1 || isNaN(dt)) dt = 0.016;
 
         updateLiveLeaderboard();
-
-        if (opponent.active) {
-            opponent.x += (opponent.targetX - opponent.x) * 0.2;
-            opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2;
+        
+        if (opponent.active) { 
+            opponent.x += (opponent.targetX - opponent.x) * 0.2; 
+            opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2; 
         }
 
-        if (!isGameOver) {
+        if (!window.isGameOver) {
             updatePlayer(dt);
-            if (difficultyState === 0 && myAbsHeight >= 500) { difficultyState = 1; showAnnounce("HARDER!"); }
-            else if (difficultyState === 1 && myAbsHeight >= 1500) { difficultyState = 2; showAnnounce("HARDER!"); }
+            if (difficultyState === 0 && window.myAbsHeight >= 500) { 
+                difficultyState = 1; 
+                showAnnounce("HARDER!"); 
+            }
+            else if (difficultyState === 1 && window.myAbsHeight >= 1500) { 
+                difficultyState = 2; 
+                showAnnounce("HARDER!"); 
+            }
         } else {
-            // FIREBASE LÄHETYS KUOLLESSA
-            if (!hasSubmitted && window.submitGlobalScore) {
-                window.submitGlobalScore(player.name, Math.floor(myAbsHeight), currentSeedText);
-                hasSubmitted = true;
+            if (!hasSubmitted && window.submitGlobalScore) { 
+                window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), currentSeedText); 
+                hasSubmitted = true; 
+                setTimeout(() => window.updateSeedSidebar(), 500); 
             }
             if (opponent.active && !opponent.dead) {
-                let targetCameraY = (HEIGHT / 2) - opponent.absY;
+                let targetCameraY = (HEIGHT / 2) - opponent.absY; 
                 cameraY += (targetCameraY - cameraY) * 0.1;
-                specMsgEl.style.display = 'block';
+                specMsgEl.style.display = 'block'; 
                 specMsgEl.innerText = `WATCHING ${opponent.name}...`;
-                while (highestWorldY > opponent.absY - HEIGHT) { highestWorldY -= 80; spawnPlatformAt(highestWorldY); }
+                while (highestWorldY > opponent.absY - HEIGHT) { 
+                    highestWorldY -= 80; 
+                    spawnPlatformAt(highestWorldY); 
+                }
             }
         }
 
@@ -459,56 +934,90 @@
             }
         });
 
-        platforms = platforms.filter(p => {
-            if (p.worldY + cameraY > HEIGHT + 300) { p.el.remove(); return false; }
-            return true;
+        platforms = platforms.filter(p => { 
+            if (p.worldY + cameraY > HEIGHT + 300) { 
+                p.el.remove(); 
+                return false; 
+            } 
+            return true; 
         });
 
-        if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
-        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
+        if (window.isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
         
-        render();
+        if (isConnected && conn.open) {
+            conn.send({ 
+                type: 'pos', 
+                x: player.x, 
+                absY: (player.y - cameraY), 
+                dead: window.isGameOver, 
+                currentScore: Math.floor(window.myAbsHeight) 
+            });
+        }
+        
+        render(); 
         requestAnimationFrame(gameLoop);
     }
 
-    function showAnnounce(msg) { announceEl.innerText = msg; announceEl.style.display = 'block'; setTimeout(() => announceEl.style.display = 'none', 3000); }
+    function showAnnounce(msg) { 
+        announceEl.innerText = msg; 
+        announceEl.style.display = 'block'; 
+        setTimeout(() => announceEl.style.display = 'none', 3000); 
+    }
 
     function updatePlayer(dt) {
-        if (keys['ArrowLeft']) player.vx = -HORIZONTAL_SPEED;
-        else if (keys['ArrowRight']) player.vx = HORIZONTAL_SPEED;
+        if (keys['ArrowLeft']) player.vx = -HORIZONTAL_SPEED; 
+        else if (keys['ArrowRight']) player.vx = HORIZONTAL_SPEED; 
         else player.vx *= Math.pow(0.01, dt);
-        player.vy += GRAVITY * dt;
-        player.x += player.vx * dt;
+
+        player.vy += GRAVITY * dt; 
+        player.x += player.vx * dt; 
         player.y += player.vy * dt;
-        if (player.x > WIDTH) player.x = -25;
+
+        if (player.x > WIDTH) player.x = -25; 
         if (player.x < -25) player.x = WIDTH;
+
         platforms.forEach(p => {
             let screenY = p.worldY + cameraY;
-            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > screenY && player.y + 25 < screenY + 15) player.vy = JUMP_FORCE;
+            if (player.vy > 0 && player.x < p.x + p.w && player.x + 25 > p.x && player.y + 25 > screenY && player.y + 25 < screenY + 15) {
+                player.vy = JUMP_FORCE;
+            }
         });
+
         if (player.y < HEIGHT / 2) { 
             let diff = HEIGHT / 2 - player.y; 
-            cameraY += diff; myAbsHeight += diff / 10; scoreEl.innerText = Math.floor(myAbsHeight); player.y = HEIGHT / 2; 
-            while (highestWorldY > -cameraY - 100) { highestWorldY -= 80; spawnPlatformAt(highestWorldY); }
+            cameraY += diff; 
+            window.myAbsHeight += diff / 10; 
+            scoreEl.innerText = Math.floor(window.myAbsHeight); 
+            player.y = HEIGHT / 2; 
+            while (highestWorldY > -cameraY - 100) { 
+                highestWorldY -= 80; 
+                spawnPlatformAt(highestWorldY); 
+            }
         }
-        if (player.y > HEIGHT) { isGameOver = true; player.finalScore = Math.floor(myAbsHeight); }
+        if (player.y > HEIGHT) { 
+            window.isGameOver = true; 
+            player.finalScore = Math.floor(window.myAbsHeight); 
+        }
     }
 
     function render() {
         playerEl.style.transform = `translate(${player.x}px, ${player.y}px)`;
-        playerEl.style.display = isGameOver ? 'none' : 'block';
-        if (opponent.active) {
-            opponentEl.style.display = 'block';
-            opponentEl.style.transform = `translate(${opponent.x}px, ${opponent.absY + cameraY}px)`;
-            opponentEl.style.opacity = opponent.dead ? "0.1" : "0.8";
+        playerEl.style.display = window.isGameOver ? 'none' : 'block';
+        if (opponent.active) { 
+            opponentEl.style.display = 'block'; 
+            opponentEl.style.transform = `translate(${opponent.x}px, ${opponent.absY + cameraY}px)`; 
+            opponentEl.style.opacity = opponent.dead ? "0.1" : "0.8"; 
         }
-        platforms.forEach(p => { p.el.style.transform = `translate(${p.x}px, ${p.worldY + cameraY}px)`; });
+        platforms.forEach(p => { 
+            p.el.style.transform = `translate(${p.x}px, ${p.worldY + cameraY}px)`; 
+        });
     }
 
     function showEndScreen() {
-        overlay.style.display = 'flex'; specMsgEl.style.display = 'none';
+        overlay.style.display = 'flex'; 
+        specMsgEl.style.display = 'none';
         const table = document.getElementById('final-leaderboard');
-        let pilots = [{ name: player.name, score: Math.floor(myAbsHeight) }];
+        let pilots = [{ name: player.name, score: Math.floor(window.myAbsHeight) }];
         if (opponent.active) pilots.push({ name: opponent.name, score: opponent.finalScore });
         pilots.sort((a, b) => b.score - a.score);
         let html = "";
@@ -517,10 +1026,22 @@
             html += `<tr><td>${pilot.name}</td><td style="text-align:right" class="${isWinner ? 'winner' : ''}">${pilot.score}</td></tr>`;
         });
         table.innerHTML = html;
+
+        const restartArea = document.getElementById('restart-area');
+        const guestInfo = document.getElementById('guest-restart-info');
+
+        if (isConnected && !isHost) {
+            restartArea.style.display = 'none';
+            guestInfo.style.display = 'block';
+        } else {
+            restartArea.style.display = 'block';
+            guestInfo.style.display = 'none';
+        }
     }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
+    updateLobbyUI();
 </script>
 </body>
 </html>
