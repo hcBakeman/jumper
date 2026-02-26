@@ -146,7 +146,6 @@
         
         #my-id-container { font-size: 11px; opacity: 0.8; margin-bottom: 15px; cursor: pointer; padding: 5px; border-radius: 4px; border: 1px dashed rgba(255,255,255,0.2); }
 
-        /* Skip Static UI */
         .checkbox-container {
             display: flex;
             align-items: center;
@@ -256,6 +255,7 @@
     let globalSeed = 0;
     let currentSeedText = "";
     let myAbsHeight = 0; 
+    let totalGameTime = 0; // SYNCHRONIZED CLOCK
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "PILOT", finalScore: 0 };
     let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", finalScore: 0, currentLiveScore: 0 };
     let platforms = [];
@@ -343,6 +343,8 @@
                 opponent.targetX = data.x; opponent.targetAbsY = data.absY; opponent.dead = data.dead; 
                 opponent.finalScore = data.currentScore; opponent.currentLiveScore = data.currentScore;
                 opponent.active = true; 
+                // Sync clock with host
+                if (!isHost && data.time) totalGameTime = data.time;
             }
         });
     }
@@ -361,13 +363,13 @@
 
         player.x = 185; player.y = 500; player.vx = 0; player.vy = 0; player.finalScore = 0;
         isGameOver = false; isRunning = true; platforms = [];
+        totalGameTime = 0; // Reset clock
         
-        // Skip-logiikka
         if (skipToMoving) {
             myAbsHeight = 1500;
             cameraY = 15000;
             highestWorldY = -15000 + 600;
-            difficultyState = 2; // Ohitetaan helpot tasot
+            difficultyState = 2;
         } else {
             myAbsHeight = 0;
             cameraY = 0;
@@ -384,11 +386,8 @@
         document.getElementById('opp-name-tag').innerText = opponent.name;
         
         container.querySelectorAll('.platform').forEach(p => p.remove());
-        
-        // Aloitusplatform pelaajan alle
         createPlatform(150, (550 - cameraY), 100, 0);
         
-        // Generoidaan alkualue
         while (highestWorldY > -cameraY - 100) {
             highestWorldY -= 80;
             spawnPlatformAt(highestWorldY);
@@ -403,28 +402,25 @@
         const el = document.createElement('div');
         el.className = 'platform'; el.style.width = w + 'px';
         container.appendChild(el);
-        platforms.push({ x, worldY, w, el, mvSpeed });
+        // Store initial side and speed for deterministic math
+        platforms.push({ initialX: x, worldY, w, el, mvSpeed });
     }
 
     function spawnPlatformAt(worldY) {
         let rand = seededRandom(worldY);
         let h = Math.abs(worldY);
         let score = h / 10;
-        
         let minW = 60, maxW = 100;
         if (score > 500) {
             let shrink = Math.min(40, (score - 500) / 50);
             minW -= shrink; maxW -= shrink;
         }
-        
         let w = rand * (maxW - minW) + minW;
         let x = rand * (WIDTH - w);
-        
         let mvSpeed = 0;
         if (score > 1500) {
             mvSpeed = (rand > 0.5 ? 1 : -1) * (60 + (score / 25));
         }
-        
         createPlatform(x, worldY, w, mvSpeed);
     }
 
@@ -432,15 +428,11 @@
         let pList = [{name: player.name, score: Math.floor(myAbsHeight), dead: isGameOver}];
         if(opponent.active) pList.push({name: opponent.name, score: opponent.currentLiveScore, dead: opponent.dead});
         pList.sort((a,b) => b.score - a.score);
-        
         let html = "";
         pList.forEach(p => {
             let color = p.name === player.name ? "var(--neon)" : "#ff00ff";
             let status = p.dead ? '<span style="color:red; font-size:9px;">[OUT]</span> ' : '<span style="color:#00ff00; font-size:9px;">[LIVE]</span> ';
-            html += `<div class="live-entry">
-                        <span style="font-size:10px; color:${color}; opacity:0.8;">${status}${p.name}</span>
-                        <span class="live-score" style="color:${color}">${p.score}</span>
-                     </div>`;
+            html += `<div class="live-entry"><span style="font-size:10px; color:${color}; opacity:0.8;">${status}${p.name}</span><span class="live-score" style="color:${color}">${p.score}</span></div>`;
         });
         liveListGame.innerHTML = html;
     }
@@ -451,11 +443,12 @@
         lastTime = timestamp;
         if (dt > 0.1 || isNaN(dt)) dt = 0.016;
 
+        totalGameTime += dt;
         updateLiveLeaderboard();
 
         if (opponent.active) {
-            opponent.x += (opponent.targetX - opponent.x) * 0.2;
-            opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.2;
+            opponent.x += (opponent.targetX - opponent.x) * 0.3; // Snappier follow
+            opponent.absY += (opponent.targetAbsY - opponent.absY) * 0.3;
         }
 
         if (!isGameOver) {
@@ -464,7 +457,7 @@
             else if (difficultyState === 1 && myAbsHeight >= 1500) { difficultyState = 2; showAnnounce("HARDER!"); }
         } else if (opponent.active && !opponent.dead) {
             let targetCameraY = (HEIGHT / 2) - opponent.absY;
-            cameraY += (targetCameraY - cameraY) * 0.1;
+            cameraY += (targetCameraY - cameraY) * 0.2; // Faster camera chase in death cam
             specMsgEl.style.display = 'block';
             specMsgEl.innerText = `WATCHING ${opponent.name}...`;
             
@@ -474,24 +467,41 @@
             }
         }
 
+        // DETERMINISTIC PLATFORM POSITIONING
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
-                p.x += p.mvSpeed * dt;
-                if (p.x < 0) { p.x = 0; p.mvSpeed = Math.abs(p.mvSpeed); }
-                else if (p.x + p.w > WIDTH) { p.x = WIDTH - p.w; p.mvSpeed = -Math.abs(p.mvSpeed); }
+                let range = WIDTH - p.w;
+                // Pos = cycle based on total game time
+                let t = (totalGameTime * Math.abs(p.mvSpeed)) / range;
+                // If initial direction was negative, offset the time
+                if (p.mvSpeed < 0) t += 1.0; 
+                
+                let progress = t % 2;
+                let pingPong = progress < 1 ? progress : 2 - progress;
+                p.x = pingPong * range;
+            } else {
+                p.x = p.initialX;
             }
         });
 
         platforms = platforms.filter(p => {
-            if (p.worldY + cameraY > HEIGHT + 300) {
-                p.el.remove();
-                return false;
+            if (p.worldY + cameraY > HEIGHT + 600) { // Keep platforms longer for spectator
+                p.el.remove(); return false;
             }
             return true;
         });
 
         if (isGameOver && (!opponent.active || opponent.dead)) showEndScreen();
-        if (isConnected && conn.open) conn.send({ type: 'pos', x: player.x, absY: (player.y - cameraY), dead: isGameOver, currentScore: Math.floor(myAbsHeight) });
+        if (isConnected && conn.open) {
+            conn.send({ 
+                type: 'pos', 
+                x: player.x, 
+                absY: (player.y - cameraY), 
+                dead: isGameOver, 
+                currentScore: Math.floor(myAbsHeight),
+                time: isHost ? totalGameTime : null // Host syncs the clock
+            });
+        }
         
         render();
         requestAnimationFrame(gameLoop);
@@ -534,14 +544,12 @@
     function render() {
         playerEl.style.transform = `translate(${player.x}px, ${player.y}px)`;
         playerEl.style.display = isGameOver ? 'none' : 'block';
-        
         if (opponent.active) {
             opponentEl.style.display = 'block';
             let oppScreenY = opponent.absY + cameraY;
             opponentEl.style.transform = `translate(${opponent.x}px, ${oppScreenY}px)`;
             opponentEl.style.opacity = opponent.dead ? "0.1" : "0.8";
         }
-        
         platforms.forEach(p => {
             p.el.style.transform = `translate(${p.x}px, ${p.worldY + cameraY}px)`;
         });
