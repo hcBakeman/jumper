@@ -9,7 +9,7 @@
             --neon: #00f2ff; 
             --bg: #0d0221; 
             --warning: #ff0055; 
-            --pulse-color: #1a0b2e; /* Tumma violetti, ei valkoinen */
+            --pulse-color: #1a0b2e; 
             --gold: #ffd700;
         }
 
@@ -31,7 +31,6 @@
         }
 
         .pulsing { 
-            /* Hengitys säädetty vastaamaan rauhallista BPM-tahtia */
             animation: breathe 4s infinite ease-in-out; 
             width: 100vw; height: 100vh;
             display: flex; flex-direction: column; align-items: center;
@@ -42,7 +41,7 @@
         
         #seed-leaderboard { position: absolute; top: 20px; right: 20px; width: 220px; background: rgba(13, 2, 33, 0.9); border-left: 3px solid var(--neon); padding: 15px; border-radius: 0 8px 8px 0; font-family: 'Courier New', Courier, monospace; z-index: 5; border: 1px solid rgba(0, 242, 255, 0.1); }
         .game-wrapper { position: relative; display: none; margin-top: 20px; }
-        .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; }
+        .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; will-change: transform; }
         #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
         #opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.8; display: none; }
         .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
@@ -50,10 +49,12 @@
         #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; }
         #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1100; }
         
-        .start-btn { padding: 12px 24px; background: var(--neon); border: none; font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px; box-shadow: 0 0 10px var(--neon); text-transform: uppercase; width: 100%; }
-        .start-btn:disabled { background: #333; box-shadow: none; cursor: not-allowed; color: #666; }
+        .start-btn { padding: 12px 24px; background: var(--neon); border: none; font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px; box-shadow: 0 0 10px var(--neon); text-transform: uppercase; width: 100%; transition: 0.2s; }
+        .start-btn:disabled { background: #333; box-shadow: none; cursor: not-allowed; color: #888; }
         .secondary-btn { padding: 8px 16px; background: transparent; border: 1px solid #5465ff; color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px; }
-        input[type="text"] { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
+        
+        input[type="text"] { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; font-weight: bold; }
+        input[type="text"]:disabled { opacity: 0.5; cursor: not-allowed; }
         
         #live-leaderboard { position: absolute; top: 0; left: -220px; width: 180px; background: rgba(26, 26, 46, 0.9); border-right: 3px solid var(--neon); padding: 15px; border-radius: 8px 0 0 8px; font-family: 'Courier New', monospace; z-index: 500; }
         #copy-status { font-size: 9px; color: var(--gold); margin-left: 5px; opacity: 0; transition: opacity 0.3s; font-weight: bold; }
@@ -82,12 +83,18 @@
 
     <div id="setup-menu">
         <h1 style="color: var(--neon); letter-spacing: 4px;">NEON REBOUND</h1>
-        <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+        
+        <div style="margin-bottom: 15px;">
+            <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+            <div id="name-error" style="color: var(--warning); font-size: 9px; margin-top: 4px; font-weight: bold; display: block;">NAME REQUIRED TO LAUNCH</div>
+        </div>
+
         <div id="player-list" style="background: rgba(255,255,255,0.05); padding: 10px; margin: 15px 0; border-radius: 8px;">
             <div id="lobby-list-content">Lobby empty...</div>
         </div>
+        
         <input type="text" id="seed-input" placeholder="MISSION_SEED" oninput="updateSeedSidebar()">
-        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled>Launch Mission</button>
+        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled>ENTER NAME TO LAUNCH</button>
         <button class="secondary-btn" onclick="openRecords()" style="width: 100%; border-color: gold; color: gold;">🏆 Global Records</button>
 
         <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
@@ -107,12 +114,12 @@
             <div id="opponent" class="player-box"><div class="name-tag" id="opp-name-tag"></div></div>
             <div id="overlay">
                 <h1 style="color: var(--warning);">MISSION OVER</h1>
-                <table id="final-leaderboard" style="width: 80%; margin: 20px 0;"></table>
+                <table id="final-leaderboard" style="width: 80%; margin: 20px 0; border-collapse: collapse;"></table>
                 <div id="host-restart-controls" style="display: none; width: 80%;">
                     <button class="start-btn" onclick="requestStart()">Rematch</button>
                     <button class="secondary-btn" onclick="backToLobby()" style="width: 100%; color: white;">Back to Lobby</button>
                 </div>
-                <div id="guest-wait-info" style="display: none; color: var(--neon); font-size: 12px;">WAITING FOR HOST...</div>
+                <div id="guest-wait-info" style="display: none; color: var(--neon); font-size: 12px; font-weight: bold;">WAITING FOR HOST...</div>
             </div>
         </div>
         <div id="live-leaderboard">
@@ -123,7 +130,6 @@
 </div>
 
 <script type="module">
-    // --- FIREBASE LOGIIKKA ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, push, onValue, query, orderByChild, limitToLast, serverTimestamp, equalTo } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -174,14 +180,13 @@
 </script>
 
 <script>
-    // --- PELI JA MULTIPLAYER (PEERJS) ---
     const peer = new Peer();
     let conn;
     let isHost = true, isConnected = false, isRunning = false, isGameOver = false;
     let player = { x: 185, y: 500, vx: 0, vy: 0, name: "" };
     let opponent = { x: 185, absY: 500, targetX: 185, targetAbsY: 500, dead: false, active: false, name: "CO-PILOT", score: 0 };
     let platforms = [], cameraY = 0, highestWorldY = 600, keys = {}, lastTime = 0;
-    let currentSeedText = "", globalSeed = 0;
+    let currentSeedText = "", globalSeed = 0, gameTime = 0;
     window.myAbsHeight = 0;
 
     peer.on('open', id => { document.getElementById('my-id-value').innerText = "ID: " + id; });
@@ -227,27 +232,38 @@
     function updateMyName() {
         player.name = document.getElementById('name-input').value.trim();
         const startBtn = document.getElementById('main-start-btn');
+        const connectBtn = document.getElementById('connect-btn');
+        const nameError = document.getElementById('name-error');
+        
+        let isValid = player.name.length >= 2;
+        nameError.style.display = isValid ? 'none' : 'block';
+        connectBtn.disabled = !isValid;
+
+        // KORJAUS: Vain isäntä voi käynnistää, mutta napin teksti opastaa
         if (!isConnected || isHost) {
-            startBtn.disabled = player.name.length < 2;
+            startBtn.disabled = !isValid;
+            startBtn.innerText = isValid ? "LAUNCH MISSION" : "ENTER NAME TO LAUNCH";
         }
-        document.getElementById('connect-btn').disabled = player.name.length < 2;
         updateLobbyUI();
     }
 
     function updateStartButtonUI() {
         const btn = document.getElementById('main-start-btn');
+        const seedInput = document.getElementById('seed-input');
+        
         if (isConnected && !isHost) {
             btn.disabled = true;
-            btn.innerText = "WAITING FOR HOST";
+            btn.innerText = "WAITING FOR HOST...";
+            seedInput.disabled = true; // Vieras ei voi vaihtaa kenttää
         } else {
-            btn.innerText = "LAUNCH MISSION";
+            seedInput.disabled = false;
             updateMyName();
         }
     }
 
     function updateLobbyUI() {
-        let html = `<div>• ${player.name || 'YOU'} (LOCAL)</div>`;
-        if (opponent.active) html += `<div style="color:var(--neon)">• ${opponent.name} (READY)</div>`;
+        let html = `<div><span style="color:#00ff00">●</span> ${player.name || 'YOU'} (LOCAL)</div>`;
+        if (opponent.active) html += `<div><span style="color:var(--neon)">●</span> ${opponent.name} (READY)</div>`;
         document.getElementById('lobby-list-content').innerHTML = html;
     }
 
@@ -264,6 +280,7 @@
         isRunning = true; isGameOver = false;
         player.x = 185; player.y = 500; player.vy = 0;
         cameraY = 0; highestWorldY = 600; window.myAbsHeight = 0;
+        gameTime = 0; 
         platforms = [];
         document.querySelectorAll('.platform').forEach(p => p.remove());
         
@@ -273,7 +290,6 @@
             let score = Math.abs(worldY) / 10;
             let w = 70 + rand * 30;
             let x = rand * (400 - w);
-            // Tasot liikkuvat heti 20 pisteen jälkeen
             let mvSpeed = score > 20 ? (rand > 0.5 ? 1 : -1) * (50 + score) : 0;
             const el = document.createElement('div');
             el.className = 'platform';
@@ -290,6 +306,8 @@
         document.getElementById('overlay').style.display = 'none';
         document.getElementById('my-name-tag').innerText = player.name;
         document.getElementById('opp-name-tag').innerText = opponent.name;
+        
+        lastTime = performance.now();
         requestAnimationFrame(gameLoop);
     }
 
@@ -298,23 +316,42 @@
         let dt = (timestamp - lastTime) / 1000;
         lastTime = timestamp; if (dt > 0.1) dt = 0.016;
 
-        let timeSecs = performance.now() / 1000;
+        gameTime += dt; 
+
         platforms.forEach(p => {
             if (p.mvSpeed !== 0) {
                 let range = (400 - p.w) / 2;
                 let center = 200 - p.w / 2;
-                // Siniaalto-sync
-                p.x = center + Math.sin(timeSecs * (Math.abs(p.mvSpeed)/60) + p.seedOffset) * range;
+                p.x = center + Math.sin(gameTime * (Math.abs(p.mvSpeed)/60) + p.seedOffset) * range;
             }
         });
 
         if (!isGameOver) {
             updatePlayer(dt);
         } else if (opponent.active && !opponent.dead) {
-            // Spectate: Seuraa vastustajaa jos itse kuolit
             let targetCam = 300 - opponent.targetAbsY;
-            cameraY += (targetCam - cameraY) * 0.1;
+            if (targetCam > cameraY) {
+                cameraY += (targetCam - cameraY) * 0.1;
+                while (highestWorldY > -cameraY - 100) { 
+                    highestWorldY -= 80; 
+                    let rand = Math.sin(highestWorldY + globalSeed) * 10000;
+                    rand = rand - Math.floor(rand);
+                    let score = Math.abs(highestWorldY) / 10;
+                    let w = 70 + rand * 30;
+                    let x = rand * (400 - w);
+                    let mvSpeed = score > 20 ? (rand > 0.5 ? 1 : -1) * (50 + score) : 0;
+                    const el = document.createElement('div');
+                    el.className = 'platform'; el.style.width = w + 'px';
+                    document.getElementById('game-container').appendChild(el);
+                    platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed, seedOffset: rand * 10 });
+                }
+            }
         }
+
+        platforms = platforms.filter(p => { 
+            if (p.worldY + cameraY > 800) { p.el.remove(); return false; } 
+            return true; 
+        });
 
         if (isConnected) conn.send({ type: 'pos', x: player.x, absY: player.y - cameraY, dead: isGameOver, score: Math.floor(window.myAbsHeight) });
 
@@ -340,7 +377,6 @@
         if (player.x > 400) player.x = -25;
         if (player.x < -25) player.x = 400;
 
-        // Kuolema alareunasta
         if (player.y + 25 > 600) {
             isGameOver = true;
             window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), currentSeedText);
@@ -359,7 +395,19 @@
             window.myAbsHeight += diff / 10;
             player.y = 300;
             document.getElementById('score').innerText = Math.floor(window.myAbsHeight);
-            while (highestWorldY > -cameraY - 100) { highestWorldY -= 80; spawnAt(highestWorldY); }
+            while (highestWorldY > -cameraY - 100) { 
+                highestWorldY -= 80; 
+                let rand = Math.sin(highestWorldY + globalSeed) * 10000;
+                rand = rand - Math.floor(rand);
+                let score = Math.abs(highestWorldY) / 10;
+                let w = 70 + rand * 30;
+                let x = rand * (400 - w);
+                let mvSpeed = score > 20 ? (rand > 0.5 ? 1 : -1) * (50 + score) : 0;
+                const el = document.createElement('div');
+                el.className = 'platform'; el.style.width = w + 'px';
+                document.getElementById('game-container').appendChild(el);
+                platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed, seedOffset: rand * 10 });
+            }
         }
     }
 
@@ -390,7 +438,7 @@
         let pilots = [{ name: player.name, score: Math.floor(window.myAbsHeight) }];
         if (opponent.active) pilots.push({ name: opponent.name, score: opponent.score });
         pilots.sort((a,b) => b.score - a.score);
-        document.getElementById('final-leaderboard').innerHTML = pilots.map(p => `<tr><td>${p.name}</td><td style="text-align:right">${p.score}</td></tr>`).join('');
+        document.getElementById('final-leaderboard').innerHTML = pilots.map(p => `<tr><td style="padding: 5px;">${p.name}</td><td style="text-align:right; font-weight: bold;">${p.score}</td></tr>`).join('');
         
         if (!isConnected || isHost) {
             document.getElementById('host-restart-controls').style.display = 'block';
