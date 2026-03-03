@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fi">
 <head>
     <meta charset="UTF-8">
     <title>NEON REBOUND: WORLD CHAMPIONSHIP</title>
@@ -105,7 +105,7 @@
 
         @keyframes pulse-banner {
             0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.9; }
+            50% { transform: scale(1.08); opacity: 0.9; }
             100% { transform: scale(1); opacity: 1; }
         }
     </style>
@@ -115,39 +115,39 @@
 <div id="global-highscore-modal">
     <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--gold);">
         <h3 style="color:var(--gold); margin:0 0 5px 0;">HALL OF FAME</h3>
-        <span onclick="closeGlobalModal()" style="cursor:pointer; color: white; font-size: 12px;">[CLOSE]</span>
+        <span onclick="closeGlobalModal()" style="cursor:pointer; color: white; font-size: 12px;">[SULJE]</span>
     </div>
-    <div id="global-list-content">Fetching records...</div>
+    <div id="global-list-content">Haetaan ennätyksiä...</div>
 </div>
 
 <div id="main-body">
     <div id="seed-leaderboard">
         <div style="font-size: 11px; color: var(--neon); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid rgba(0,242,255,0.2); padding-bottom: 5px;">Seed <span id="seed-title-tag">---</span></div>
-        <div id="seed-list-content">Syncing...</div>
+        <div id="seed-list-content">Synkronoidaan...</div>
     </div>
 
     <div id="setup-menu">
         <h1 style="color: var(--neon); letter-spacing: 4px; margin-bottom: 5px;">NEON REBOUND</h1>
-        <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+        <input type="text" id="name-input" placeholder="SYÖTÄ NIMI" maxlength="12" oninput="updateMyName()">
         
         <div id="player-list" style="background: rgba(255,255,255,0.05); padding: 10px; margin: 15px 0; border-radius: 8px; min-height: 50px;">
-            <div id="lobby-list-content">Lobby empty...</div>
+            <div id="lobby-list-content">Aula on tyhjä...</div>
         </div>
         
         <input type="text" id="seed-input" placeholder="MISSION_SEED" oninput="onSeedInputChange()">
-        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled>ENTER NAME</button>
-        <button class="highscore-btn" onclick="openGlobalModal()">GLOBAL HIGHSCORES</button>
+        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled>SYÖTÄ NIMI</button>
+        <button class="highscore-btn" onclick="openGlobalModal()">MAAILMANENNATYKSET</button>
 
         <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
-            <div id="my-id-value" style="font-size: 10px; color: var(--neon); margin-bottom: 5px; cursor: pointer; text-decoration: underline;">CONNECTING...</div>
-            <input type="text" id="join-id" placeholder="PASTE FRIEND'S ID">
-            <button id="connect-btn" class="secondary-btn" style="width: 100%;" onclick="connectToPeer()">JOIN LOBBY</button>
+            <div id="my-id-value" style="font-size: 10px; color: var(--neon); margin-bottom: 5px; cursor: pointer; text-decoration: underline;">YHDISTETÄÄN...</div>
+            <input type="text" id="join-id" placeholder="LIITÄ KAVERIN ID">
+            <button id="connect-btn" class="secondary-btn" style="width: 100%;" onclick="connectToPeer()">LIITY AULAAN</button>
         </div>
     </div>
 
     <div class="game-wrapper" id="game-wrapper">
         <div id="game-container">
-            <div id="host-disconnect-notice">CONNECTION TO HOST LOST!</div>
+            <div id="host-disconnect-notice">YHTEYS HOSTEEN KATKESI!</div>
             
             <div id="ui"><div>SCORE: <span id="score">0</span></div></div>
             <div id="player" class="player-box"><div class="name-tag" id="my-name-tag"></div></div>
@@ -155,8 +155,8 @@
             <div id="spec-ui-container">
                 <div id="spec-text">SPECTATING MISSION</div>
                 <div id="spec-host-controls" style="display:none; display:flex; gap: 10px;">
-                    <button class="secondary-btn" onclick="requestStart()" style="background: var(--neon); color: black; border: none; font-weight: bold;">REMATCH</button>
-                    <button class="secondary-btn" onclick="backToLobby()" style="background: white; color: black; border: none; font-weight: bold;">LOBBY</button>
+                    <button class="secondary-btn" onclick="requestStart()" style="background: var(--neon); color: black; border: none; font-weight: bold;">UUSINTA</button>
+                    <button class="secondary-btn" onclick="backToLobby()" style="background: white; color: black; border: none; font-weight: bold;">AULAAN</button>
                 </div>
             </div>
 
@@ -166,15 +166,15 @@
                 <h1 id="over-title" style="color: var(--warning); margin: 0; font-size: 24px; opacity: 0.8;">MISSION OVER</h1>
                 <table id="final-leaderboard" style="width: 90%; margin: 15px 0; border-collapse: collapse; font-size: 14px; background: rgba(255,255,255,0.03); border-radius: 4px;"></table>
                 <div id="host-restart-controls" style="display: none; width: 80%;">
-                    <button class="start-btn" onclick="requestStart()">REMATCH</button>
-                    <button class="secondary-btn" onclick="backToLobby()" style="width: 100%; color: white;">BACK TO LOBBY</button>
+                    <button class="start-btn" onclick="requestStart()">UUSINTA</button>
+                    <button class="secondary-btn" onclick="backToLobby()" style="width: 100%; color: white;">TAKAISIN AULAAN</button>
                 </div>
-                <div id="guest-wait-info" style="display: none; color: var(--neon); font-weight: bold;">WAITING FOR HOST...</div>
-                <button id="guest-exit-btn" class="secondary-btn" style="display:none; width:80%;" onclick="location.reload()">RETURN TO MENU</button>
+                <div id="guest-wait-info" style="display: none; color: var(--neon); font-weight: bold;">ODOTETAAN HOSTIA...</div>
+                <button id="guest-exit-btn" class="secondary-btn" style="display:none; width:80%;" onclick="location.reload()">PALAA VALIKKOON</button>
             </div>
         </div>
         <div id="live-leaderboard">
-            <div style="font-size: 10px; color: var(--neon); margin-bottom: 10px; font-weight: bold;">LIVE TRACKING</div>
+            <div style="font-size: 10px; color: var(--neon); margin-bottom: 10px; font-weight: bold;">LIVE SEURANTA</div>
             <div id="live-list-content-game"></div>
         </div>
     </div>
@@ -213,7 +213,7 @@
             document.getElementById('seed-list-content').innerHTML = list.slice(0, 10).map((e,i) => 
                 `<div style="display:flex; justify-content:space-between; font-size:11px; padding:4px 0; color:${i===0?'var(--gold)':'inherit'}">
                     <span>${i+1}. ${e.name}</span><b>${e.score}</b>
-                </div>`).join('') || "No records yet";
+                </div>`).join('') || "Ei tuloksia vielä";
         });
     };
 
@@ -240,7 +240,7 @@
     
     window.closeGlobalModal = function() { document.getElementById('global-highscore-modal').style.display = 'none'; };
 
-    // KORJATTU TALLENNUS: Lisätty 'uid' kenttä sääntöjen mukaiseksi
+    // KORJATTU TALLENNUS: Lisätty 'uid' kenttä tietoturvasääntöjen mukaiseksi
     window.submitGlobalScore = function(n, s, seed) { 
         const user = auth.currentUser;
         if(n && s > 10 && user) {
@@ -250,7 +250,7 @@
                 seed: seed, 
                 timestamp: serverTimestamp(),
                 uid: user.uid 
-            }).catch(err => console.error("Firebase error:", err)); 
+            }).catch(err => console.error("Firebase tallennus epäonnistui:", err)); 
         } 
     };
 </script>
@@ -267,7 +267,7 @@
 
     peer.on('open', id => { 
         myPeerID = id;
-        document.getElementById('my-id-value').innerText = "YOUR ID: " + id; 
+        document.getElementById('my-id-value').innerText = "ID: " + id; 
         document.getElementById('my-id-value').onclick = copyMyID;
     });
 
@@ -275,16 +275,16 @@
         if (!myPeerID) return;
         const idLabel = document.getElementById('my-id-value');
         if (!player.name || player.name.length < 2) {
-            idLabel.innerText = "NAME REQUIRED!";
+            idLabel.innerText = "NIMI PUUTTUU!";
             idLabel.style.color = "var(--warning)";
             document.getElementById('name-input').focus();
-            setTimeout(() => { idLabel.innerText = "YOUR ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
+            setTimeout(() => { idLabel.innerText = "ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
             return;
         }
         navigator.clipboard.writeText(myPeerID);
-        idLabel.innerText = "COPIED!";
+        idLabel.innerText = "KOPIOITU!";
         idLabel.style.color = "var(--gold)";
-        setTimeout(() => { idLabel.innerText = "YOUR ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
+        setTimeout(() => { idLabel.innerText = "ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
     }
 
     peer.on('connection', c => { 
@@ -323,7 +323,7 @@
         const connectBtn = document.getElementById('connect-btn');
         if (!player.name || player.name.length < 2) {
             const oldText = connectBtn.innerText;
-            connectBtn.innerText = "NAME REQUIRED!";
+            connectBtn.innerText = "NIMI PUUTTUU!";
             connectBtn.style.color = "var(--warning)";
             connectBtn.style.borderColor = "var(--warning)";
             document.getElementById('name-input').focus();
@@ -336,7 +336,7 @@
         isHost = false; isConnected = true;
         document.getElementById('name-input').disabled = true;
         const startBtn = document.getElementById('main-start-btn');
-        startBtn.innerText = "WAITING FOR HOST...";
+        startBtn.innerText = "ODOTETAAN HOSTIA...";
         startBtn.disabled = true;
 
         hostConn.on('open', () => {
@@ -351,7 +351,7 @@
                     opponents[data.id].score = data.score; opponents[data.id].dead = data.dead;
                 }
                 if(data.type === 'back_to_lobby') resetToLobby();
-                if(data.type === 'kicked') { alert("Kicked by host"); location.reload(); }
+                if(data.type === 'kicked') { alert("Host potki sinut ulos"); location.reload(); }
             });
             hostConn.on('close', () => {
                 isHostDisconnected = true;
@@ -366,7 +366,7 @@
         player.name = document.getElementById('name-input').value.trim();
         let isValid = player.name.length >= 2;
         document.getElementById('main-start-btn').disabled = !isValid;
-        document.getElementById('main-start-btn').innerText = isValid ? "LAUNCH MISSION" : "ENTER NAME";
+        document.getElementById('main-start-btn').innerText = isValid ? "ALOITA MISSIO" : "SYÖTÄ NIMI";
         if(hostConn) hostConn.send({ type: 'name', name: player.name });
         updateLobbyUI();
     }
@@ -395,14 +395,14 @@
         document.getElementById('lobby-list-content').innerHTML = getLobbyData().map(p => `
             <div class="lobby-row">
                 <span style="color:${p.id===peer.id?'#00ff00':'var(--neon)'}">● ${p.name}</span>
-                ${p.id!==peer.id?`<button class="kick-btn" onclick="kickPlayer('${p.id}')">KICK</button>`:''}
+                ${p.id!==peer.id?`<button class="kick-btn" onclick="kickPlayer('${p.id}')">POTKI</button>`:''}
             </div>`).join('');
     }
 
     function renderGuestLobby(players) {
         document.getElementById('lobby-list-content').innerHTML = players.map(p => `
             <div class="lobby-row">
-                <span style="color:${p.isHost?'#00ff00':'var(--neon)'}">● ${p.name} ${p.name===player.name?'(YOU)':''}</span>
+                <span style="color:${p.isHost?'#00ff00':'var(--neon)'}">● ${p.name} ${p.name===player.name?'(SINÄ)':''}</span>
             </div>`).join('');
     }
 
@@ -552,6 +552,7 @@
         document.getElementById('live-list-content-game').innerHTML = list.map(p => `<div style="color:${p.d?'#ff4444':'#00ff00'}"><small>${p.d?'[OUT]':'[LIVE]'} ${p.n}</small> <b>${p.s}</b></div>`).join('');
     }
 
+    // KORJATTU FUNKTIO: Tarkistetaan ennätys ENNEN kuin window.seedTop1Score päivittyy
     async function showEndScreen() {
         if (document.getElementById('overlay').style.display === 'flex') return;
         
@@ -567,17 +568,17 @@
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Achievements check
+        // Achievements check - TÄSSÄ KORJAUS LOGIIKKAAN
         if (myScore > 0) {
             if (myScore > window.seedTop1Score) {
-                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
+                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 22px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 UUSI MAAILMANENNÄTYS! 🏆</div>`;
             } else {
                 const seedList = document.getElementById('seed-list-content').innerText;
                 const scores = seedList.match(/\d+/g);
                 if (scores) {
                     const pointsOnly = scores.filter((_, i) => i % 2 !== 0).map(Number);
                     if (pointsOnly.length < 10 || myScore > Math.min(...pointsOnly)) {
-                        banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 RANK ACHIEVED! ✨</div>`;
+                        banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 SAAVUTETTU! ✨</div>`;
                     }
                 }
             }
@@ -590,21 +591,21 @@
 
         if(pilots.length > 0) {
             const winner = pilots[0];
-            winnerBox.innerHTML = `<div style="color:var(--gold); font-weight:bold; font-size:18px; letter-spacing:1px;">🥇 WINNER: ${winner.name} 🥇</div>`;
+            winnerBox.innerHTML = `<div style="color:var(--gold); font-weight:bold; font-size:18px; letter-spacing:1px;">🥇 VOITTAJA: ${winner.name} 🥇</div>`;
         }
         
-        // KORJATTU TULOSTAULUKKO: Lisätty [NEW WR!] nimen perään jos kuka tahansa rikkoi ennätyksen
+        // TULOSTAULUKKO: Näytetään kenelle tuli uusi WR
         document.getElementById('final-leaderboard').innerHTML = pilots.map(p => {
             const isNewWR = p.score > window.seedTop1Score;
             const wrLabel = isNewWR ? ` <span style="color:var(--gold); font-size:10px; vertical-align:middle;">[NEW WR!]</span>` : "";
             return `
             <tr style="color:${p.isMe?'var(--neon)':'white'}; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <td style="padding:8px 10px">${p.name} ${p.isMe?'(YOU)':''}${wrLabel}</td>
+                <td style="padding:8px 10px">${p.name} ${p.isMe?'(SINÄ)':''}${wrLabel}</td>
                 <td style="text-align:right; padding:8px 10px"><b>${p.score}</b></td>
             </tr>`;
         }).join('');
         
-        // Päivitetään paikallinen muuttuja tuloksen jälkeen (banneritarkistuksen jälkeen)
+        // Päivitetään paikallinen WR-muuttuja vasta onnittelun jälkeen
         const highestInMatch = Math.max(...pilots.map(p => p.score));
         if (highestInMatch > window.seedTop1Score) window.seedTop1Score = highestInMatch;
 
