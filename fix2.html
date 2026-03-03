@@ -556,21 +556,9 @@
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // PÄIVITYS: Achievement-ilmoitus vain itselle
-        if (myScore > 0) {
-            if (myScore > window.seedTop1Score) {
-                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
-                window.seedTop1Score = myScore;
-            } else {
-                const seedList = document.getElementById('seed-list-content').innerText;
-                const scores = seedList.match(/\d+/g);
-                if (scores) {
-                    const pointsOnly = scores.filter((_, i) => i % 2 !== 0).map(Number);
-                    if (pointsOnly.length < 10 || myScore > Math.min(...pointsOnly)) {
-                        banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 RANK ACHIEVED! ✨</div>`;
-                    }
-                }
-            }
+        // PÄIVITYS: Henkilökohtainen banneri vain ennätyksen tekijälle
+        if (myScore > 0 && myScore > window.seedTop1Score) {
+            banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
         }
 
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
@@ -582,12 +570,21 @@
             winnerBox.innerHTML = `<div style="color:var(--gold); font-weight:bold; font-size:18px; letter-spacing:1px;">🥇 WINNER: ${winner.name} 🥇</div>`;
         }
         
-        document.getElementById('final-leaderboard').innerHTML = pilots.map(p => `
+        // PÄIVITYS: Lisätään [NEW WR!] nimen perään jos kuka tahansa rikkoi vanhan ennätyksen
+        document.getElementById('final-leaderboard').innerHTML = pilots.map(p => {
+            const isNewWR = p.score > window.seedTop1Score;
+            const wrLabel = isNewWR ? ` <span style="color:var(--gold); font-size:10px; vertical-align:middle;">[NEW WR!]</span>` : "";
+            return `
             <tr style="color:${p.isMe?'var(--neon)':'white'}; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <td style="padding:8px 10px">${p.name} ${p.isMe?'(YOU)':''}</td>
+                <td style="padding:8px 10px">${p.name} ${p.isMe?'(YOU)':''}${wrLabel}</td>
                 <td style="text-align:right; padding:8px 10px"><b>${p.score}</b></td>
-            </tr>`).join('');
+            </tr>`;
+        }).join('');
         
+        // Päivitetään paikallinen muuttuja tuloksen jälkeen (banneritarkistuksen jälkeen)
+        const highestInMatch = Math.max(...pilots.map(p => p.score));
+        if (highestInMatch > window.seedTop1Score) window.seedTop1Score = highestInMatch;
+
         if(isHost) {
             document.getElementById('host-restart-controls').style.display = 'block';
             document.getElementById('guest-wait-info').style.display = 'none';
