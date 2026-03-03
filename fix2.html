@@ -99,7 +99,7 @@
             <div id="lobby-list-content">Lobby is empty...</div>
         </div>
         
-        <input type="text" id="seed-input" placeholder="MISSION_1" oninput="onSeedInputChange()">
+        <input type="text" id="seed-input" placeholder="MISSION_SEED" oninput="onSeedInputChange()">
         <button class="start-btn" id="main-start-btn" onclick="requestStart()">START MISSION</button>
         <button class="highscore-btn" onclick="openGlobalModal()">WORLD RECORDS</button>
 
@@ -396,22 +396,40 @@
 
             if (player.y < 300) {
                 let diff = 300 - player.y; cameraY += diff; window.myAbsHeight += diff / 10; player.y = 300;
-                document.getElementById('score').innerText = Math.floor(window.myAbsHeight);
-                while (highestWorldY > -cameraY - 100) { 
-                    highestWorldY -= 80; 
-                    let rand = Math.sin(highestWorldY + globalSeed)*10000; rand-=Math.floor(rand);
-                    let score = Math.abs(highestWorldY)/10;
-                    let w = 70+rand*30; let x = rand*(400-w);
-                    const el = document.createElement('div'); el.className = 'platform'; el.style.width = w + 'px';
-                    document.getElementById('game-container').appendChild(el);
-                    platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed: score>20?(rand>0.5?1:-1)*(50+score):0, seedOffset: rand*10 });
-                }
             }
             if(player.y + 25 > 600) { 
                 isGameOver = true; 
                 window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), document.getElementById('seed-input').value || "MISSION_1"); 
             }
+        } else {
+            // DEATH CAM LOGIIKKA: Seuraa elossa olevaa pelaajaa, jolla on eniten pisteitä
+            let bestOpponent = null;
+            let maxScore = -1;
+            for(let id in opponents) {
+                if(!opponents[id].dead && opponents[id].score > maxScore) {
+                    maxScore = opponents[id].score;
+                    bestOpponent = opponents[id];
+                }
+            }
+            if(bestOpponent) {
+                let targetScreenY = bestOpponent.absY + cameraY;
+                let diff = 300 - targetScreenY;
+                cameraY += diff;
+            }
         }
+
+        // Tasojen generointi kameran mukaan (tärkeää myös death camille)
+        while (highestWorldY > -cameraY - 100) { 
+            highestWorldY -= 80; 
+            let rand = Math.sin(highestWorldY + globalSeed)*10000; rand-=Math.floor(rand);
+            let score = Math.abs(highestWorldY)/10;
+            let w = 70+rand*30; let x = rand*(400-w);
+            const el = document.createElement('div'); el.className = 'platform'; el.style.width = w + 'px';
+            document.getElementById('game-container').appendChild(el);
+            platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed: score>20?(rand>0.5?1:-1)*(50+score):0, seedOffset: rand*10 });
+        }
+
+        document.getElementById('score').innerText = Math.floor(window.myAbsHeight);
 
         platforms = platforms.filter(p => { if (p.worldY + cameraY > 800) { p.el.remove(); return false; } return true; });
         let myData = { type: (isHost?'opp_pos':'pos'), id: peer.id, name: player.name, x: player.x, absY: player.y - cameraY, score: Math.floor(window.myAbsHeight), dead: isGameOver };
@@ -451,7 +469,6 @@
         overlay.style.display = 'flex';
         banner.innerHTML = "";
 
-        // LOGIIKKA KORJATTU: Käytetään >= vertailua koska kanta päivittyy usein jo ennen renderöintiä
         if (myScore > 10) {
             if (myScore >= window.seedTop1Score || window.seedScoresCount === 0) {
                 banner.innerHTML = `<div class="wr-banner">🏆 NEW WORLD RECORD! 🏆</div>`;
@@ -472,11 +489,10 @@
     }
 
     function backToLobby() { if(isHost) broadcast({ type: 'back_to_lobby' }); resetToLobby(); }
-    function resetToLobby() { isRunning = false; document.getElementById('game-wrapper').style.display = 'none'; document.getElementById('setup-menu').style.display = 'block'; }
+    function resetToLobby() { isRunning = false; document.getElementById('game-wrapper').style.display = 'none'; document.getElementById('setup-menu').style.display = 'block'; document.getElementById('overlay').style.display = 'none'; }
 
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
 </script>
 </body>
 </html>
-
