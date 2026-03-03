@@ -84,7 +84,6 @@
         input[type="text"] { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; font-weight: bold; }
         input[type="text"]:disabled { opacity: 0.5; cursor: not-allowed; border-color: #444; }
         
-        /* MUUTOS: Lisätty enemmän väliä (-220px) jotta ei overlap */
         #live-leaderboard { position: absolute; top: 0; left: -220px; width: 180px; background: rgba(26, 26, 46, 0.9); border-right: 3px solid var(--neon); padding: 15px; border-radius: 8px 0 0 8px; font-family: 'Courier New', monospace; z-index: 500; }
         .kick-btn { background: var(--warning); color: white; border: none; font-size: 9px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         
@@ -557,7 +556,7 @@
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Achievements check
+        // PÄIVITYS: Achievement-ilmoitus vain itselle
         if (myScore > 0) {
             if (myScore > window.seedTop1Score) {
                 banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
@@ -574,7 +573,6 @@
             }
         }
 
-        // Winner determination
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
         for(let id in opponents) pilots.push({ name: opponents[id].name, score: opponents[id].score, isMe: false });
         pilots.sort((a,b) => b.score - a.score);
