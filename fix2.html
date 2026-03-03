@@ -155,6 +155,7 @@
     
     window.seedTop1Score = 0;
     window.seedTop10Score = 0;
+    window.seedScoresCount = 0;
 
     signInAnonymously(auth).then(() => { window.updateSeedSidebar(); });
 
@@ -165,8 +166,10 @@
             const list = [];
             if (snap.val()) Object.values(snap.val()).forEach(v => list.push(v));
             list.sort((a,b) => b.score - a.score);
+            
             window.seedTop1Score = list[0]?.score || 0;
             window.seedTop10Score = list.length >= 10 ? list[9].score : (list.length > 0 ? list[list.length-1].score : 0);
+            window.seedScoresCount = list.length;
             
             document.getElementById('seed-list-content').innerHTML = list.slice(0, 10).map((e,i) => 
                 `<div style="display:flex; justify-content:space-between; font-size:11px; padding:4px 0; color:${i===0?'var(--gold)':'inherit'}">
@@ -316,7 +319,7 @@
 
     function renderGuestLobby(players) {
         document.getElementById('lobby-list-content').innerHTML = players.map(p => {
-            const isMe = p.name === player.name; // Simple check for guests
+            const isMe = p.name === player.name; 
             const color = isMe ? 'var(--neon)' : 'var(--magenta)';
             return `<div style="color:${color}">● ${p.name}</div>`;
         }).join('');
@@ -404,7 +407,10 @@
                     platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed: score>20?(rand>0.5?1:-1)*(50+score):0, seedOffset: rand*10 });
                 }
             }
-            if(player.y + 25 > 600) { isGameOver = true; window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), document.getElementById('seed-input').value || "MISSION_1"); }
+            if(player.y + 25 > 600) { 
+                isGameOver = true; 
+                window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), document.getElementById('seed-input').value || "MISSION_1"); 
+            }
         }
 
         platforms = platforms.filter(p => { if (p.worldY + cameraY > 800) { p.el.remove(); return false; } return true; });
@@ -445,11 +451,13 @@
         overlay.style.display = 'flex';
         banner.innerHTML = "";
 
-        // REFINED ACHIEVEMENT LOGIC
-        if (myScore > window.seedTop1Score && myScore > 10) {
-            banner.innerHTML = `<div class="wr-banner">🏆 NEW WORLD RECORD! 🏆</div>`;
-        } else if (myScore > window.seedTop10Score && myScore > 10) {
-            banner.innerHTML = `<div style="color:var(--neon); margin-bottom:10px; font-weight:bold;">🔥 TOP 10 REACHED! 🔥</div>`;
+        // LOGIIKKA KORJATTU: Käytetään >= vertailua koska kanta päivittyy usein jo ennen renderöintiä
+        if (myScore > 10) {
+            if (myScore >= window.seedTop1Score || window.seedScoresCount === 0) {
+                banner.innerHTML = `<div class="wr-banner">🏆 NEW WORLD RECORD! 🏆</div>`;
+            } else if (myScore >= window.seedTop10Score || window.seedScoresCount < 10) {
+                banner.innerHTML = `<div style="color:var(--neon); margin-bottom:10px; font-weight:bold;">🔥 TOP 10 REACHED! 🔥</div>`;
+            }
         }
 
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
