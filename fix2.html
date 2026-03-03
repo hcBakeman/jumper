@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>NEON REBOUND: ULTIMATE MULTIPLAYER</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { 
+            --neon: #00f2ff; 
+            --bg: #0d0221; 
+            --warning: #ff0055; 
+            --pulse-color: #1a0b2e; 
+            --gold: #ffd700;
+        }
+
+        /* CUSTOM SCROLLBAR THEME */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--neon); border-radius: 10px; box-shadow: 0 0 10px var(--neon); }
+        ::-webkit-scrollbar-thumb:hover { background: #fff; }
+
+        body { 
+            margin: 0; background: var(--bg); color: white; 
+            font-family: 'Segoe UI', sans-serif; overflow: hidden; 
+            display: flex; flex-direction: column; align-items: center; 
+        }
+
+        @keyframes breathe {
+            0%, 100% { background-color: var(--bg); }
+            50% { background-color: var(--pulse-color); }
+        }
+        .pulsing { animation: breathe 4s infinite ease-in-out; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        #setup-menu { margin-top: 40px; text-align: center; z-index: 10; width: 340px; }
+        #game-container { position: relative; width: 400px; height: 600px; border: 4px solid #1a1a2e; overflow: hidden; background: #050110; box-shadow: 0 0 50px rgba(0,0,0,0.5); border-radius: 8px; }
+        
+        #global-highscore-modal { 
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 400px; max-height: 80vh; background: rgba(13, 2, 33, 0.98); 
+            border: 2px solid var(--gold); border-radius: 12px; padding: 20px;
+            z-index: 2000; display: none; overflow-y: auto; box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+        }
+
+        .global-row { 
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px; 
+            padding: 8px 0; 
+            border-bottom: 1px solid rgba(255, 215, 0, 0.1); 
+        }
+        
+        .name-cell { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
+        
+        .score-val { 
+            color: #fff; 
+            font-weight: bold; 
+            width: 60px; 
+            text-align: right; 
+            margin-right: 15px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .seed-link { color: var(--neon); cursor: pointer; text-decoration: underline; font-weight: bold; font-family: monospace; min-width: 100px; text-align: right; }
+
+        #seed-leaderboard { position: absolute; top: 20px; right: 20px; width: 220px; background: rgba(13, 2, 33, 0.9); border-left: 3px solid var(--neon); padding: 15px; border-radius: 0 8px 8px 0; font-family: 'Courier New', monospace; z-index: 5; border: 1px solid rgba(0, 242, 255, 0.1); }
+        .game-wrapper { position: relative; display: none; margin-top: 20px; }
+        
+        .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; will-change: transform; }
+        #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
+        .opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.8; transition: opacity 0.3s; }
+        
+        .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; white-space: nowrap; }
+        .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; z-index: 10; will-change: transform; }
+        
+        #ui { position: absolute; top: 10px; left: 10px; right: 10px; z-index: 100; font-weight: bold; display: flex; justify-content: space-between; pointer-events: none; }
+        #overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1100; text-align: center; }
+        
+        .start-btn { padding: 12px 24px; background: var(--neon); border: none; font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px; box-shadow: 0 0 10px var(--neon); text-transform: uppercase; width: 100%; }
+        .start-btn:disabled { background: #333; box-shadow: none; cursor: not-allowed; color: #888; }
+        .secondary-btn { padding: 8px 16px; background: transparent; border: 1px solid #5465ff; color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px; }
+        .highscore-btn { padding: 10px; background: #222; border: 1px solid var(--gold); color: var(--gold); font-weight: bold; cursor: pointer; width: 100%; border-radius: 8px; margin-top: 10px; text-transform: uppercase; font-size: 11px; }
+
+        input[type="text"] { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; font-weight: bold; }
+        input[type="text"]:disabled { opacity: 0.5; cursor: not-allowed; border-color: #444; }
+        
+        #live-leaderboard { position: absolute; top: 0; left: -200px; width: 180px; background: rgba(26, 26, 46, 0.9); border-right: 3px solid var(--neon); padding: 15px; border-radius: 8px 0 0 8px; font-family: 'Courier New', monospace; z-index: 500; }
+        .kick-btn { background: var(--warning); color: white; border: none; font-size: 9px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        #spec-ui-container { 
+            position: absolute; bottom: 20px; width: 100%; 
+            display: none; flex-direction: column; align-items: center; 
+            z-index: 1200; pointer-events: none;
+        }
+        #spec-ui-container * { pointer-events: auto; }
+        #spec-text { color: var(--gold); font-weight: bold; font-size: 12px; margin-bottom: 10px; text-shadow: 0 0 10px black; }
+        
+        .lobby-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; font-weight: bold; }
+        
+        #host-disconnect-notice { 
+            position: absolute; top: 50px; width: 100%; text-align: center; 
+            color: var(--warning); font-weight: bold; z-index: 1000; display: none;
+            text-shadow: 0 0 10px black;
+        }
+
+        @keyframes pulse-banner {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="pulsing">
+
+<div id="global-highscore-modal">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--gold);">
+        <h3 style="color:var(--gold); margin:0 0 5px 0;">HALL OF FAME</h3>
+        <span onclick="closeGlobalModal()" style="cursor:pointer; color: white; font-size: 12px;">[CLOSE]</span>
+    </div>
+    <div id="global-list-content">Fetching records...</div>
+</div>
+
+<div id="main-body">
+    <div id="seed-leaderboard">
+        <div style="font-size: 11px; color: var(--neon); letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; font-weight: bold; border-bottom: 1px solid rgba(0,242,255,0.2); padding-bottom: 5px;">Seed <span id="seed-title-tag">---</span></div>
+        <div id="seed-list-content">Syncing...</div>
+    </div>
+
+    <div id="setup-menu">
+        <h1 style="color: var(--neon); letter-spacing: 4px; margin-bottom: 5px;">NEON REBOUND</h1>
+        <input type="text" id="name-input" placeholder="ENTER PILOT NAME" maxlength="12" oninput="updateMyName()">
+        
+        <div id="player-list" style="background: rgba(255,255,255,0.05); padding: 10px; margin: 15px 0; border-radius: 8px; min-height: 50px;">
+            <div id="lobby-list-content">Lobby empty...</div>
+        </div>
+        
+        <input type="text" id="seed-input" placeholder="MISSION_SEED" oninput="onSeedInputChange()">
+        <button class="start-btn" id="main-start-btn" onclick="requestStart()" disabled>ENTER NAME</button>
+        <button class="highscore-btn" onclick="openGlobalModal()">GLOBAL HIGHSCORES</button>
+
+        <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
+            <div id="my-id-value" style="font-size: 10px; color: var(--neon); margin-bottom: 5px; cursor: pointer; text-decoration: underline;">CONNECTING...</div>
+            <input type="text" id="join-id" placeholder="PASTE FRIEND'S ID">
+            <button id="connect-btn" class="secondary-btn" style="width: 100%;" onclick="connectToPeer()">JOIN LOBBY</button>
+        </div>
+    </div>
+
+    <div class="game-wrapper" id="game-wrapper">
+        <div id="game-container">
+            <div id="host-disconnect-notice">CONNECTION TO HOST LOST!</div>
+            
+            <div id="ui"><div>SCORE: <span id="score">0</span></div></div>
+            <div id="player" class="player-box"><div class="name-tag" id="my-name-tag"></div></div>
+            
+            <div id="spec-ui-container">
+                <div id="spec-text">SPECTATING MISSION</div>
+                <div id="spec-host-controls" style="display:none; display:flex; gap: 10px;">
+                    <button class="secondary-btn" onclick="requestStart()" style="background: var(--neon); color: black; border: none; font-weight: bold;">REMATCH</button>
+                    <button class="secondary-btn" onclick="backToLobby()" style="background: white; color: black; border: none; font-weight: bold;">LOBBY</button>
+                </div>
+            </div>
+
+            <div id="overlay">
+                <div id="achievement-banner"></div>
+                <h1 id="over-title" style="color: var(--warning); margin: 0;">MISSION OVER</h1>
+                <table id="final-leaderboard" style="width: 80%; margin: 20px 0; border-collapse: collapse; font-size: 14px;"></table>
+                <div id="host-restart-controls" style="display: none; width: 80%;">
+                    <button class="start-btn" onclick="requestStart()">REMATCH</button>
+                    <button class="secondary-btn" onclick="backToLobby()" style="width: 100%; color: white;">BACK TO LOBBY</button>
+                </div>
+                <div id="guest-wait-info" style="display: none; color: var(--neon); font-weight: bold;">WAITING FOR HOST...</div>
+                <button id="guest-exit-btn" class="secondary-btn" style="display:none; width:80%;" onclick="location.reload()">RETURN TO MENU</button>
+            </div>
+        </div>
+        <div id="live-leaderboard">
+            <div style="font-size: 10px; color: var(--neon); margin-bottom: 10px; font-weight: bold;">LIVE TRACKING</div>
+            <div id="live-list-content-game"></div>
+        </div>
+    </div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, onValue, query, orderByChild, equalTo, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyANTViVdgV4KhM8FsyYqLIwMw8OAI-fGko",
+        authDomain: "neon-rebound-pro.firebaseapp.com",
+        databaseURL: "https://neon-rebound-pro-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "neon-rebound-pro",
+        storageBucket: "neon-rebound-pro.firebasestorage.app",
+        messagingSenderId: "188389620245",
+        appId: "1:188389620245:web:1fffebc4557dc17686ec1c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth();
+    
+    window.seedTop1Score = 0;
+    signInAnonymously(auth).then(() => { window.updateSeedSidebar(); });
+
+    window.updateSeedSidebar = function() {
+        const seed = document.getElementById('seed-input').value || "MISSION_1";
+        document.getElementById('seed-title-tag').innerText = seed;
+        onValue(query(ref(db, 'highscores'), orderByChild('seed'), equalTo(seed)), (snap) => {
+            const list = [];
+            if (snap.val()) Object.values(snap.val()).forEach(v => list.push(v));
+            list.sort((a,b) => b.score - a.score);
+            window.seedTop1Score = list[0]?.score || 0;
+            document.getElementById('seed-list-content').innerHTML = list.slice(0, 10).map((e,i) => 
+                `<div style="display:flex; justify-content:space-between; font-size:11px; padding:4px 0; color:${i===0?'var(--gold)':'inherit'}">
+                    <span>${i+1}. ${e.name}</span><b>${e.score}</b>
+                </div>`).join('') || "No records yet";
+        });
+    };
+
+    window.openGlobalModal = function() {
+        document.getElementById('global-highscore-modal').style.display = 'block';
+        onValue(ref(db, 'highscores'), (snap) => {
+            const list = [];
+            if (snap.val()) Object.values(snap.val()).forEach(v => list.push(v));
+            list.sort((a,b) => b.score - a.score);
+            document.getElementById('global-list-content').innerHTML = list.slice(0, 50).map((e,i) => `
+                <div class="global-row">
+                    <span class="name-cell">${i+1}. <b>${e.name}</b></span>
+                    <span class="score-val">${e.score}</span>
+                    <span class="seed-link" onclick="applyGlobalSeed('${e.seed}')">[${e.seed}]</span>
+                </div>`).join('');
+        });
+    };
+
+    window.applyGlobalSeed = function(s) { 
+        document.getElementById('seed-input').value = s; 
+        window.onSeedInputChange(); 
+        window.closeGlobalModal(); 
+    };
+    
+    window.closeGlobalModal = function() { document.getElementById('global-highscore-modal').style.display = 'none'; };
+    window.submitGlobalScore = function(n, s, seed) { 
+        if(n && s > 10) push(ref(db, 'highscores'), { name:n, score:s, seed:seed, timestamp: serverTimestamp() }); 
+    };
+</script>
+
+<script>
+    const peer = new Peer();
+    let conns = [], hostConn = null, isHost = true, isConnected = false, isRunning = false, isGameOver = false, isSpectating = false;
+    let player = { x: 185, y: 550, vx: 0, vy: 0, name: "", score: 0 };
+    let opponents = {}, platforms = [], cameraY = 0, highestWorldY = 600, keys = {}, lastTime = 0, globalSeed = 0, gameTime = 0;
+    let gameStartTime = 0;
+    let myPeerID = "";
+    let isHostDisconnected = false;
+    window.myAbsHeight = 0;
+
+    peer.on('open', id => { 
+        myPeerID = id;
+        document.getElementById('my-id-value').innerText = "YOUR ID: " + id; 
+        document.getElementById('my-id-value').onclick = copyMyID;
+    });
+
+    function copyMyID() {
+        if (!myPeerID) return;
+        const idLabel = document.getElementById('my-id-value');
+        if (!player.name || player.name.length < 2) {
+            idLabel.innerText = "NAME REQUIRED!";
+            idLabel.style.color = "var(--warning)";
+            document.getElementById('name-input').focus();
+            setTimeout(() => { idLabel.innerText = "YOUR ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
+            return;
+        }
+        navigator.clipboard.writeText(myPeerID);
+        idLabel.innerText = "COPIED!";
+        idLabel.style.color = "var(--gold)";
+        setTimeout(() => { idLabel.innerText = "YOUR ID: " + myPeerID; idLabel.style.color = "var(--neon)"; }, 1500);
+    }
+
+    peer.on('connection', c => { 
+        isHost = true; isConnected = true;
+        conns.push(c);
+        setupHostConnection(c);
+        document.getElementById('name-input').disabled = true;
+        c.on('open', () => c.send({ type: 'sync_seed', seed: document.getElementById('seed-input').value || "MISSION_1" }));
+    });
+
+    function setupHostConnection(c) {
+        c.on('data', data => {
+            if(data.type === 'name') {
+                opponents[c.peer] = { name: data.name, x: 185, y: 550, score: 0, dead: false, el: createOpponentElement(c.peer, data.name) };
+                updateLobbyUI();
+                broadcast({ type: 'lobby_update', players: getLobbyData() });
+            }
+            if(data.type === 'pos') {
+                if(opponents[c.peer]) {
+                    opponents[c.peer].x = data.x; opponents[c.peer].y = data.y;
+                    opponents[c.peer].score = data.score; opponents[c.peer].dead = data.dead;
+                }
+                broadcast({ type: 'opp_pos', id: c.peer, x: data.x, y: data.y, score: data.score, dead: data.dead, name: opponents[c.peer]?.name }, c.peer);
+            }
+        });
+        c.on('close', () => { 
+            if(opponents[c.peer]?.el) opponents[c.peer].el.remove();
+            delete opponents[c.peer];
+            conns = conns.filter(conn => conn.peer !== c.peer);
+            updateLobbyUI();
+            broadcast({ type: 'lobby_update', players: getLobbyData() });
+        });
+    }
+
+    function connectToPeer() {
+        const connectBtn = document.getElementById('connect-btn');
+        if (!player.name || player.name.length < 2) {
+            const oldText = connectBtn.innerText;
+            connectBtn.innerText = "NAME REQUIRED!";
+            connectBtn.style.color = "var(--warning)";
+            connectBtn.style.borderColor = "var(--warning)";
+            document.getElementById('name-input').focus();
+            setTimeout(() => { connectBtn.innerText = oldText; connectBtn.style.color = "#5465ff"; connectBtn.style.borderColor = "#5465ff"; }, 1500);
+            return;
+        }
+        const joinId = document.getElementById('join-id').value.trim();
+        if (!joinId) return;
+        hostConn = peer.connect(joinId);
+        isHost = false; isConnected = true;
+        document.getElementById('name-input').disabled = true;
+        const startBtn = document.getElementById('main-start-btn');
+        startBtn.innerText = "WAITING FOR HOST...";
+        startBtn.disabled = true;
+
+        hostConn.on('open', () => {
+            hostConn.send({ type: 'name', name: player.name });
+            hostConn.on('data', data => {
+                if(data.type === 'lobby_update') renderGuestLobby(data.players);
+                if(data.type === 'sync_seed') { document.getElementById('seed-input').value = data.seed; window.updateSeedSidebar(); }
+                if(data.type === 'start') { isSpectating = false; initGame(data.seed, data.startTime); }
+                if(data.type === 'opp_pos') {
+                    if(!opponents[data.id]) opponents[data.id] = { name: data.name, el: createOpponentElement(data.id, data.name) };
+                    opponents[data.id].x = data.x; opponents[data.id].y = data.y;
+                    opponents[data.id].score = data.score; opponents[data.id].dead = data.dead;
+                }
+                if(data.type === 'back_to_lobby') resetToLobby();
+                if(data.type === 'kicked') { alert("Kicked by host"); location.reload(); }
+            });
+            hostConn.on('close', () => {
+                isHostDisconnected = true;
+                document.getElementById('host-disconnect-notice').style.display = 'block';
+            });
+        });
+    }
+
+    function broadcast(data, skipId = null) { conns.forEach(c => { if(c.peer !== skipId) c.send(data); }); }
+
+    function updateMyName() {
+        player.name = document.getElementById('name-input').value.trim();
+        let isValid = player.name.length >= 2;
+        document.getElementById('main-start-btn').disabled = !isValid;
+        document.getElementById('main-start-btn').innerText = isValid ? "LAUNCH MISSION" : "ENTER NAME";
+        if(hostConn) hostConn.send({ type: 'name', name: player.name });
+        updateLobbyUI();
+    }
+
+    function kickPlayer(id) {
+        const c = conns.find(conn => conn.peer === id);
+        if(c) { c.send({ type: 'kicked' }); setTimeout(() => c.close(), 100); }
+    }
+
+    function createOpponentElement(id, name) {
+        const el = document.createElement('div');
+        el.className = 'player-box opponent';
+        el.innerHTML = `<div class="name-tag">${name}</div>`;
+        document.getElementById('game-container').appendChild(el);
+        return el;
+    }
+
+    function getLobbyData() {
+        let list = [{ name: player.name, id: peer.id, isHost: true }];
+        for(let id in opponents) list.push({ name: opponents[id].name, id: id, isHost: false });
+        return list;
+    }
+
+    function updateLobbyUI() {
+        if(!isHost) return;
+        document.getElementById('lobby-list-content').innerHTML = getLobbyData().map(p => `
+            <div class="lobby-row">
+                <span style="color:${p.id===peer.id?'#00ff00':'var(--neon)'}">● ${p.name}</span>
+                ${p.id!==peer.id?`<button class="kick-btn" onclick="kickPlayer('${p.id}')">KICK</button>`:''}
+            </div>`).join('');
+    }
+
+    function renderGuestLobby(players) {
+        document.getElementById('lobby-list-content').innerHTML = players.map(p => `
+            <div class="lobby-row">
+                <span style="color:${p.isHost?'#00ff00':'var(--neon)'}">● ${p.name} ${p.name===player.name?'(YOU)':''}</span>
+            </div>`).join('');
+    }
+
+    function onSeedInputChange() { if(isHost && isConnected) broadcast({ type: 'sync_seed', seed: document.getElementById('seed-input').value }); window.updateSeedSidebar(); }
+
+    function requestStart() {
+        const seed = document.getElementById('seed-input').value || "MISSION_1";
+        const startTime = Date.now();
+        if (isHost) broadcast({ type: 'start', seed: seed, startTime: startTime });
+        isSpectating = false; initGame(seed, startTime);
+    }
+
+    function initGame(seed, startTime) {
+        globalSeed = seed.split('').reduce((a,b) => (a << 5) - a + b.charCodeAt(0), 0);
+        gameStartTime = startTime;
+        isRunning = true; isGameOver = false;
+        player.x = 185; player.y = 550; player.vx = 0; player.vy = 0; window.myAbsHeight = 0;
+        cameraY = 0; highestWorldY = 600; gameTime = 0;
+        platforms = [];
+        document.querySelectorAll('.platform').forEach(p => p.remove());
+        // Huom: isHostDisconnected kertoo onko yhteys poikki, emme nollaa sitä tässä jotta info säilyy jos host lähtee kesken
+        for(let id in opponents) { opponents[id].dead = false; opponents[id].score = 0; }
+
+        const spawn = (y, force = false) => {
+            let rand = Math.sin(y + globalSeed) * 10000; rand -= Math.floor(rand);
+            let w = force ? 120 : 70 + rand * 30;
+            let x = force ? 140 : rand * (400 - w);
+            let scoreAtY = Math.abs(y) / 10;
+            let mvSpeed = (!force && scoreAtY > 20) ? (rand > 0.5 ? 1 : -1) * (50 + scoreAtY) : 0;
+            const el = document.createElement('div');
+            el.className = 'platform'; el.style.width = w + 'px';
+            document.getElementById('game-container').appendChild(el);
+            platforms.push({ x, worldY: y, w, el, mvSpeed: mvSpeed, seedOffset: rand * 10 });
+        };
+
+        spawn(580, true);
+        while(highestWorldY > -100) { highestWorldY -= 85; spawn(highestWorldY); }
+
+        document.getElementById('setup-menu').style.display = 'none';
+        document.getElementById('game-wrapper').style.display = 'block';
+        document.getElementById('overlay').style.display = 'none';
+        document.getElementById('my-name-tag').innerText = player.name;
+        document.getElementById('spec-ui-container').style.display = 'none';
+        lastTime = performance.now();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function gameLoop(t) {
+        if (!isRunning) return;
+        let dt = Math.min((t - lastTime) / 1000, 0.1);
+        lastTime = t;
+        updateLogic(dt);
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function updateLogic(dt) {
+        gameTime = (Date.now() - gameStartTime) / 1000;
+        platforms = platforms.filter(p => {
+            if (p.worldY + cameraY > 650) { p.el.remove(); return false; }
+            if(p.mvSpeed !== 0) {
+                let range = (400 - p.w) / 2;
+                let center = 200 - p.w / 2;
+                p.x = center + Math.sin(gameTime * (Math.abs(p.mvSpeed)/60) + p.seedOffset) * range;
+            }
+            return true;
+        });
+
+        if (!isGameOver && !isSpectating) {
+            if (keys['ArrowLeft']) player.vx = -400; else if (keys['ArrowRight']) player.vx = 400; else player.vx *= 0.8;
+            player.vy += 1600 * dt; player.x += player.vx * dt; player.y += player.vy * dt;
+            if(player.x > 400) player.x = -25; if(player.x < -25) player.x = 400;
+
+            platforms.forEach(p => {
+                if(player.vy > 0 && player.x+25 > p.x && player.x < p.x+p.w && player.y+25 > p.worldY && player.y+25 < p.worldY+15) {
+                    player.vy = -650;
+                }
+            });
+
+            let targetCam = 350 - player.y;
+            if(targetCam > cameraY) cameraY = targetCam;
+            window.myAbsHeight = Math.max(window.myAbsHeight, (550 - player.y) / 10);
+            document.getElementById('score').innerText = Math.floor(window.myAbsHeight);
+
+            if(player.y + cameraY > 600) { 
+                isGameOver = true; 
+                window.submitGlobalScore(player.name, Math.floor(window.myAbsHeight), document.getElementById('seed-input').value || "MISSION_1");
+                
+                // Jos host on lähtenyt, näytetään loppuruutu heti ilman spectate-yritystä
+                if (isHostDisconnected) {
+                    showEndScreen();
+                }
+            }
+        } else if (!isHostDisconnected) {
+            // Seurataan parasta pelaajaa vain jos host on paikalla
+            let leader = null; let maxS = -1;
+            for(let id in opponents) if(!opponents[id].dead && opponents[id].score > maxS) { maxS = opponents[id].score; leader = opponents[id]; }
+            
+            if(leader) { 
+                let targetCam = 350 - leader.y; 
+                cameraY += (targetCam - cameraY) * 0.1; 
+                document.getElementById('spec-ui-container').style.display = 'flex';
+                document.getElementById('spec-text').innerText = "SPECTATING: " + leader.name;
+                document.getElementById('spec-host-controls').style.display = isHost ? 'flex' : 'none';
+            } else {
+                document.getElementById('spec-ui-container').style.display = 'none';
+            }
+        }
+
+        while(highestWorldY > -cameraY - 200) { 
+            highestWorldY -= 85; 
+            let rand = Math.sin(highestWorldY + globalSeed)*10000; rand-=Math.floor(rand);
+            let scoreAtY = Math.abs(highestWorldY) / 10;
+            let w = 70 + rand * 30; let x = rand * (400 - w);
+            let mvSpeed = (scoreAtY > 20) ? (rand > 0.5 ? 1 : -1) * (50 + scoreAtY) : 0;
+            const el = document.createElement('div'); el.className = 'platform'; el.style.width = w + 'px';
+            document.getElementById('game-container').appendChild(el);
+            platforms.push({ x, worldY: highestWorldY, w, el, mvSpeed, seedOffset: rand * 10 });
+        }
+        
+        let myData = { type: (isHost?'opp_pos':'pos'), id: peer.id, name: player.name, x: player.x, y: player.y, score: Math.floor(window.myAbsHeight), dead: (isGameOver||isSpectating) };
+        if(isHost) broadcast(myData); else if(hostConn) hostConn.send(myData);
+
+        updateLiveTracking();
+        
+        let anyoneAlive = !isGameOver && !isSpectating;
+        for(let id in opponents) if(!opponents[id].dead) anyoneAlive = true;
+        
+        if((!anyoneAlive || (isGameOver && isHostDisconnected)) && isRunning) showEndScreen();
+    }
+
+    function render() {
+        document.getElementById('player').style.transform = `translate(${player.x}px, ${player.y + cameraY}px)`;
+        document.getElementById('player').style.display = (isGameOver || isSpectating) ? 'none' : 'block';
+        for(let id in opponents) {
+            let o = opponents[id];
+            if(o.el) {
+                o.el.style.transform = `translate(${o.x}px, ${o.y + cameraY}px)`;
+                o.el.style.opacity = o.dead ? "0.15" : "1";
+            }
+        }
+        platforms.forEach(p => { p.el.style.transform = `translate(${p.x}px, ${p.worldY + cameraY}px)`; });
+    }
+
+    function updateLiveTracking() {
+        let list = [{n: player.name, s: Math.floor(window.myAbsHeight), d: (isGameOver||isSpectating)}];
+        for(let id in opponents) list.push({n: opponents[id].name, s: opponents[id].score, d: opponents[id].dead});
+        list.sort((a,b) => b.s - a.s);
+        document.getElementById('live-list-content-game').innerHTML = list.map(p => `<div style="color:${p.d?'#ff4444':'#00ff00'}"><small>${p.d?'[OUT]':'[LIVE]'} ${p.n}</small> <b>${p.s}</b></div>`).join('');
+    }
+
+    async function showEndScreen() {
+        if (document.getElementById('overlay').style.display === 'flex') return; // Estetään moninkertainen suoritus
+        
+        document.getElementById('spec-ui-container').style.display = 'none';
+        const myScore = Math.floor(window.myAbsHeight);
+        const overlay = document.getElementById('overlay');
+        const banner = document.getElementById('achievement-banner');
+        overlay.style.display = 'flex';
+        banner.innerHTML = ""; 
+
+        // Odotetaan hetki, että Firebase-kuuntelija päivittää window.seedTop1Score jos joku muu kuoli juuri
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (myScore > 0) {
+            if (myScore > window.seedTop1Score) {
+                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 22px; text-shadow: 0 0 15px var(--gold); margin-bottom: 10px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
+                window.seedTop1Score = myScore; // Päivitetään paikallisesti heti
+            } else {
+                const seedList = document.getElementById('seed-list-content').innerText;
+                const scores = seedList.match(/\d+/g);
+                if (scores) {
+                    const pointsOnly = scores.filter((_, i) => i % 2 !== 0).map(Number);
+                    if (pointsOnly.length < 10 || myScore > Math.min(...pointsOnly)) {
+                        banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 RANK ACHIEVED! ✨</div>`;
+                    }
+                }
+            }
+        }
+
+        let pilots = [{ name: player.name, score: myScore, isMe: true }];
+        for(let id in opponents) pilots.push({ name: opponents[id].name, score: opponents[id].score, isMe: false });
+        pilots.sort((a,b) => b.score - a.score);
+        
+        document.getElementById('final-leaderboard').innerHTML = pilots.map(p => `<tr style="color:${p.isMe?'var(--neon)':'white'}"><td style="padding:5px">${p.name}</td><td style="text-align:right"><b>${p.score}</b></td></tr>`).join('');
+        
+        if(isHost) {
+            document.getElementById('host-restart-controls').style.display = 'block';
+            document.getElementById('guest-wait-info').style.display = 'none';
+        } else {
+            if(isHostDisconnected) {
+                document.getElementById('guest-wait-info').style.display = 'none';
+                document.getElementById('guest-exit-btn').style.display = 'block';
+            } else {
+                document.getElementById('guest-wait-info').style.display = 'block';
+            }
+        }
+    }
+
+    function backToLobby() { if(isHost) broadcast({ type: 'back_to_lobby' }); resetToLobby(); }
+    function resetToLobby() { isRunning = false; document.getElementById('game-wrapper').style.display = 'none'; document.getElementById('setup-menu').style.display = 'block'; document.getElementById('overlay').style.display = 'none'; if (conns.length === 0 && !hostConn) { document.getElementById('name-input').disabled = false; } }
+
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+</script>
+</body>
+</html>
