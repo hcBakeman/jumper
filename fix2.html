@@ -11,6 +11,7 @@
             --warning: #ff0055; 
             --pulse-color: #1a0b2e; 
             --gold: #ffd700;
+            --magenta: #ff00ff;
         }
 
         /* CUSTOM SCROLLBAR THEME */
@@ -27,23 +28,9 @@
         @keyframes breathe { 0%, 100% { background-color: var(--bg); } 50% { background-color: var(--pulse-color); } }
         .pulsing { animation: breathe 4s infinite ease-in-out; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; }
 
-        /* INLINE WARNING LABEL */
         #name-warning {
-            color: var(--warning);
-            font-size: 10px;
-            font-weight: bold;
-            letter-spacing: 1px;
-            margin-bottom: 10px;
-            display: none;
-            text-shadow: 0 0 10px var(--warning);
-        }
-
-        #notification {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(255, 0, 85, 0.95); border: 2px solid white;
-            padding: 12px 30px; border-radius: 50px; font-weight: bold;
-            z-index: 5000; display: none; box-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
-            pointer-events: none; transition: opacity 0.3s; color: white;
+            color: var(--warning); font-size: 10px; font-weight: bold; letter-spacing: 1px;
+            margin-bottom: 10px; display: none; text-shadow: 0 0 10px var(--warning);
         }
 
         #setup-menu { margin-top: 40px; text-align: center; z-index: 10; width: 340px; }
@@ -64,7 +51,7 @@
         
         .player-box { position: absolute; width: 25px; height: 25px; border-radius: 4px; z-index: 20; will-change: transform; }
         #player { background: var(--neon); box-shadow: 0 0 15px var(--neon); }
-        .opponent { background: #ff00ff; box-shadow: 0 0 15px #ff00ff; opacity: 0.8; }
+        .opponent { background: var(--magenta); box-shadow: 0 0 15px var(--magenta); opacity: 0.8; }
         
         .name-tag { position: absolute; width: 100px; text-align: center; left: -37.5px; top: -20px; font-size: 10px; font-weight: bold; text-transform: uppercase; }
         .platform { position: absolute; height: 10px; background: #5465ff; box-shadow: 0 0 10px #5465ff; border-radius: 5px; z-index: 10; will-change: transform; }
@@ -75,17 +62,19 @@
         .start-btn { padding: 12px 24px; background: var(--neon); border: none; font-weight: bold; cursor: pointer; margin: 5px; border-radius: 8px; box-shadow: 0 0 10px var(--neon); text-transform: uppercase; width: 100%; }
         .secondary-btn { padding: 8px 16px; background: transparent; border: 1px solid #5465ff; color: #5465ff; cursor: pointer; border-radius: 8px; text-transform: uppercase; font-size: 11px; margin: 5px; }
         .highscore-btn { padding: 10px; background: #222; border: 1px solid var(--gold); color: var(--gold); font-weight: bold; cursor: pointer; width: 100%; border-radius: 8px; margin-top: 10px; }
+        .kick-btn { background: var(--warning); border: none; color: white; font-size: 8px; padding: 2px 6px; border-radius: 4px; cursor: pointer; margin-left: 10px; text-transform: uppercase; }
 
         input[type="text"] { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #1a1a2e; color: white; margin-bottom: 5px; text-align: center; width: 100%; box-sizing: border-box; }
         #live-leaderboard { position: absolute; top: 0; left: -220px; width: 180px; background: rgba(26, 26, 46, 0.9); border-right: 3px solid var(--neon); padding: 15px; border-radius: 8px 0 0 8px; font-family: 'Courier New', monospace; }
+
+        #my-id-container { font-size: 10px; color: var(--neon); margin-bottom: 5px; cursor: pointer; transition: color 0.2s; }
+        #my-id-container:hover { color: white; }
 
         .wr-banner { color: var(--gold); font-weight: bold; font-size: 22px; animation: pulse-banner 1s infinite; margin-bottom: 15px; }
         @keyframes pulse-banner { 0%, 100% { transform: scale(1); text-shadow: 0 0 10px var(--gold); } 50% { transform: scale(1.05); text-shadow: 0 0 25px var(--gold); } }
     </style>
 </head>
 <body class="pulsing">
-
-<div id="notification">MESSAGE</div>
 
 <div id="global-highscore-modal">
     <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid var(--gold);">
@@ -115,7 +104,7 @@
         <button class="highscore-btn" onclick="openGlobalModal()">WORLD RECORDS</button>
 
         <div id="multiplayer-menu" style="margin-top: 15px; border-top: 1px solid #333; padding-top: 10px;">
-            <div id="my-id-value" style="font-size: 10px; color: var(--neon); margin-bottom: 5px;">CONNECTING...</div>
+            <div id="my-id-container" onclick="copyMyID()">CONNECTING...</div>
             <input type="text" id="join-id" placeholder="PASTE HOST ID">
             <button id="connect-btn" class="secondary-btn" style="width: 100%;" onclick="connectToPeer()">JOIN LOBBY</button>
         </div>
@@ -165,6 +154,8 @@
     const auth = getAuth();
     
     window.seedTop1Score = 0;
+    window.seedTop10Score = 0;
+
     signInAnonymously(auth).then(() => { window.updateSeedSidebar(); });
 
     window.updateSeedSidebar = function() {
@@ -175,6 +166,8 @@
             if (snap.val()) Object.values(snap.val()).forEach(v => list.push(v));
             list.sort((a,b) => b.score - a.score);
             window.seedTop1Score = list[0]?.score || 0;
+            window.seedTop10Score = list.length >= 10 ? list[9].score : (list.length > 0 ? list[list.length-1].score : 0);
+            
             document.getElementById('seed-list-content').innerHTML = list.slice(0, 10).map((e,i) => 
                 `<div style="display:flex; justify-content:space-between; font-size:11px; padding:4px 0; color:${i===0?'var(--gold)':'inherit'}">
                     <span>${i+1}. ${e.name}</span><b>${e.score}</b>
@@ -210,19 +203,26 @@
 <script>
     const peer = new Peer();
     let conns = [], hostConn = null, isHost = true, isConnected = false, isRunning = false, isGameOver = false;
-    let player = { x: 185, y: 520, vx: 0, vy: 0, name: "" }; // Set Y slightly above platform
+    let player = { x: 185, y: 520, vx: 0, vy: 0, name: "" };
     let opponents = {}, platforms = [], cameraY = 0, highestWorldY = 600, keys = {}, globalSeed = 0;
     let gameTime = 0, lastTime = 0;
     window.myAbsHeight = 0;
 
-    function showNotification(msg) {
-        const el = document.getElementById('notification');
-        el.innerText = msg;
-        el.style.display = 'block'; el.style.opacity = '1';
-        setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.style.display = 'none', 300); }, 3000);
+    peer.on('open', id => { document.getElementById('my-id-container').innerText = "YOUR ID: " + id; });
+    
+    function copyMyID() {
+        const idText = document.getElementById('my-id-container').innerText.replace("YOUR ID: ", "");
+        if(idText === "CONNECTING...") return;
+        navigator.clipboard.writeText(idText);
+        const original = document.getElementById('my-id-container').innerText;
+        document.getElementById('my-id-container').innerText = "COPIED!";
+        document.getElementById('my-id-container').style.color = "#00ff00";
+        setTimeout(() => { 
+            document.getElementById('my-id-container').innerText = original;
+            document.getElementById('my-id-container').style.color = "var(--neon)";
+        }, 1500);
     }
 
-    peer.on('open', id => { document.getElementById('my-id-value').innerText = "YOUR ID: " + id; });
     peer.on('connection', c => { 
         isHost = true; isConnected = true; conns.push(c);
         setupHostConnection(c);
@@ -246,11 +246,23 @@
         });
     }
 
-    function connectToPeer() {
-        if (!player.name || player.name.length < 2) { 
-            document.getElementById('name-warning').style.display = 'block';
-            return; 
+    function kickPlayer(id) {
+        const conn = conns.find(c => c.peer === id);
+        if(conn) {
+            conn.send({ type: 'kicked' });
+            setTimeout(() => conn.close(), 100);
+            conns = conns.filter(c => c.peer !== id);
+            if(opponents[id]) {
+                if(opponents[id].el) opponents[id].el.remove();
+                delete opponents[id];
+            }
+            updateLobbyUI();
+            broadcast({ type: 'lobby_update', players: getLobbyData() });
         }
+    }
+
+    function connectToPeer() {
+        if (!player.name || player.name.length < 2) { document.getElementById('name-warning').style.display = 'block'; return; }
         const joinId = document.getElementById('join-id').value.trim();
         if (!joinId) return;
         hostConn = peer.connect(joinId);
@@ -267,7 +279,7 @@
                     opponents[data.id].score = data.score; opponents[data.id].dead = data.dead;
                 }
                 if(data.type === 'back_to_lobby') resetToLobby();
-                if(data.type === 'kicked') { showNotification("YOU WERE KICKED BY THE HOST!"); location.reload(); }
+                if(data.type === 'kicked') { alert("YOU WERE KICKED BY THE HOST!"); location.reload(); }
             });
         });
     }
@@ -294,20 +306,26 @@
     }
 
     function updateLobbyUI() {
-        document.getElementById('lobby-list-content').innerHTML = getLobbyData().map(p => `<div>● ${p.name}</div>`).join('');
+        document.getElementById('lobby-list-content').innerHTML = getLobbyData().map(p => {
+            const isMe = p.id === peer.id;
+            const color = isMe ? 'var(--neon)' : 'var(--magenta)';
+            const kickBtn = (isHost && !isMe) ? `<button class="kick-btn" onclick="kickPlayer('${p.id}')">KICK</button>` : '';
+            return `<div style="color:${color}; display:flex; align-items:center; justify-content:center; margin-bottom:4px;">● ${p.name} ${kickBtn}</div>`;
+        }).join('');
     }
 
     function renderGuestLobby(players) {
-        document.getElementById('lobby-list-content').innerHTML = players.map(p => `<div>● ${p.name}</div>`).join('');
+        document.getElementById('lobby-list-content').innerHTML = players.map(p => {
+            const isMe = p.name === player.name; // Simple check for guests
+            const color = isMe ? 'var(--neon)' : 'var(--magenta)';
+            return `<div style="color:${color}">● ${p.name}</div>`;
+        }).join('');
     }
 
     function onSeedInputChange() { if(isHost) broadcast({ type: 'sync_seed', seed: document.getElementById('seed-input').value }); window.updateSeedSidebar(); }
 
     function requestStart() {
-        if (!player.name || player.name.length < 2) { 
-            document.getElementById('name-warning').style.display = 'block';
-            return; 
-        }
+        if (!player.name || player.name.length < 2) { document.getElementById('name-warning').style.display = 'block'; return; }
         const seed = document.getElementById('seed-input').value || "MISSION_1";
         if (isHost) broadcast({ type: 'start', seed: seed });
         initGame(seed);
@@ -322,27 +340,19 @@
         document.querySelectorAll('.platform').forEach(p => p.remove());
         for(let id in opponents) { opponents[id].dead = false; opponents[id].score = 0; opponents[id].absY = 520; }
 
-        // SPAWN LOGIC: First platform is always safe and centered
         const spawn = (y, isFirst = false) => {
             let rand = Math.sin(y + globalSeed) * 10000; rand -= Math.floor(rand);
             let score = Math.abs(y) / 10;
             let w, x;
-            
-            if (isFirst) {
-                w = 180; // Nice and wide start
-                x = 110; // Centered
-            } else {
-                w = 70 + rand * 30;
-                x = rand * (400 - w);
-            }
-            
+            if (isFirst) { w = 180; x = 110; } 
+            else { w = 70 + rand * 30; x = rand * (400 - w); }
             let mvSpeed = (!isFirst && score > 20) ? (rand > 0.5 ? 1 : -1) * (50 + score) : 0;
             const el = document.createElement('div'); el.className = 'platform'; el.style.width = w + 'px';
             document.getElementById('game-container').appendChild(el);
             platforms.push({ x, worldY: y, w, el, mvSpeed, seedOffset: rand * 10 });
         };
 
-        spawn(550, true); // Create starting platform
+        spawn(550, true);
         while(highestWorldY > -100) { highestWorldY -= 80; spawn(highestWorldY); }
 
         document.getElementById('setup-menu').style.display = 'none';
@@ -382,9 +392,7 @@
             });
 
             if (player.y < 300) {
-                let diff = 300 - player.y;
-                cameraY += diff; window.myAbsHeight += diff / 10;
-                player.y = 300;
+                let diff = 300 - player.y; cameraY += diff; window.myAbsHeight += diff / 10; player.y = 300;
                 document.getElementById('score').innerText = Math.floor(window.myAbsHeight);
                 while (highestWorldY > -cameraY - 100) { 
                     highestWorldY -= 80; 
@@ -400,7 +408,6 @@
         }
 
         platforms = platforms.filter(p => { if (p.worldY + cameraY > 800) { p.el.remove(); return false; } return true; });
-
         let myData = { type: (isHost?'opp_pos':'pos'), id: peer.id, name: player.name, x: player.x, absY: player.y - cameraY, score: Math.floor(window.myAbsHeight), dead: isGameOver };
         if(isHost) broadcast(myData); else if(hostConn) hostConn.send(myData);
 
@@ -438,10 +445,11 @@
         overlay.style.display = 'flex';
         banner.innerHTML = "";
 
+        // REFINED ACHIEVEMENT LOGIC
         if (myScore > window.seedTop1Score && myScore > 10) {
             banner.innerHTML = `<div class="wr-banner">🏆 NEW WORLD RECORD! 🏆</div>`;
-        } else if (myScore > 0) {
-            banner.innerHTML = `<div style="color:var(--neon); margin-bottom:10px;">TOP 10 REACHED!</div>`;
+        } else if (myScore > window.seedTop10Score && myScore > 10) {
+            banner.innerHTML = `<div style="color:var(--neon); margin-bottom:10px; font-weight:bold;">🔥 TOP 10 REACHED! 🔥</div>`;
         }
 
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
