@@ -239,8 +239,19 @@
     };
     
     window.closeGlobalModal = function() { document.getElementById('global-highscore-modal').style.display = 'none'; };
+
+    // KORJATTU TALLENNUS: Lisätty 'uid' kenttä sääntöjen mukaiseksi
     window.submitGlobalScore = function(n, s, seed) { 
-        if(n && s > 10) push(ref(db, 'highscores'), { name:n, score:s, seed:seed, timestamp: serverTimestamp() }); 
+        const user = auth.currentUser;
+        if(n && s > 10 && user) {
+            push(ref(db, 'highscores'), { 
+                name: n, 
+                score: s, 
+                seed: seed, 
+                timestamp: serverTimestamp(),
+                uid: user.uid 
+            }).catch(err => console.error("Firebase error:", err)); 
+        } 
     };
 </script>
 
@@ -556,11 +567,23 @@
 
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // PÄIVITYS: Henkilökohtainen banneri vain ennätyksen tekijälle
-        if (myScore > 0 && myScore > window.seedTop1Score) {
-            banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
+        // Achievements check
+        if (myScore > 0) {
+            if (myScore > window.seedTop1Score) {
+                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 NEW WORLD RECORD! 🏆</div>`;
+            } else {
+                const seedList = document.getElementById('seed-list-content').innerText;
+                const scores = seedList.match(/\d+/g);
+                if (scores) {
+                    const pointsOnly = scores.filter((_, i) => i % 2 !== 0).map(Number);
+                    if (pointsOnly.length < 10 || myScore > Math.min(...pointsOnly)) {
+                        banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 RANK ACHIEVED! ✨</div>`;
+                    }
+                }
+            }
         }
 
+        // Winner determination
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
         for(let id in opponents) pilots.push({ name: opponents[id].name, score: opponents[id].score, isMe: false });
         pilots.sort((a,b) => b.score - a.score);
@@ -570,7 +593,7 @@
             winnerBox.innerHTML = `<div style="color:var(--gold); font-weight:bold; font-size:18px; letter-spacing:1px;">🥇 WINNER: ${winner.name} 🥇</div>`;
         }
         
-        // PÄIVITYS: Lisätään [NEW WR!] nimen perään jos kuka tahansa rikkoi vanhan ennätyksen
+        // KORJATTU TULOSTAULUKKO: Lisätty [NEW WR!] nimen perään jos kuka tahansa rikkoi ennätyksen
         document.getElementById('final-leaderboard').innerHTML = pilots.map(p => {
             const isNewWR = p.score > window.seedTop1Score;
             const wrLabel = isNewWR ? ` <span style="color:var(--gold); font-size:10px; vertical-align:middle;">[NEW WR!]</span>` : "";
@@ -606,4 +629,3 @@
 </script>
 </body>
 </html>
-
