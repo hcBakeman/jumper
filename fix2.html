@@ -553,7 +553,7 @@
     }
 
     // KORJATTU FUNKTIO: Tarkistetaan ennätys ENNEN kuin window.seedTop1Score päivittyy
-    async function showEndScreen() {
+async function showEndScreen() {
         if (document.getElementById('overlay').style.display === 'flex') return;
         
         document.getElementById('spec-ui-container').style.display = 'none';
@@ -566,25 +566,33 @@
         banner.innerHTML = ""; 
         winnerBox.innerHTML = "";
 
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Odotetaan hetki, että Firebase ehtii mahdollisesti päivittää tilanteen
+        await new Promise(resolve => setTimeout(resolve, 600));
 
-        // Achievements check - TÄSSÄ KORJAUS LOGIIKKAAN
+        // SAAVUTUSTEN TARKISTUS
         if (myScore > 0) {
-            if (myScore > window.seedTop1Score) {
-                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 22px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 UUSI MAAILMANENNÄTYS! 🏆</div>`;
+            // Haetaan nykyinen maailmanennätys sivupalkista (varmistetaan tyyppi numeroksi)
+            const currentWR = parseInt(window.seedTop1Score) || 0;
+
+            if (myScore > currentWR) {
+                // UUSI MAAILMANENNÄTYS (Asetetaan tämä prioriteetiksi)
+                banner.innerHTML = `<div style="color: var(--gold); font-weight: bold; font-size: 20px; text-shadow: 0 0 15px var(--gold); margin-bottom: 15px; animation: pulse-banner 1s infinite;">🏆 UUSI MAAILMANENNÄTYS! 🏆</div>`;
+                // Päivitetään paikallinen WR heti, ettei se näytä vanhaa arvoa seuraavalla kerralla
+                window.seedTop1Score = myScore;
             } else {
-                const seedList = document.getElementById('seed-list-content').innerText;
-                const scores = seedList.match(/\d+/g);
+                // Tarkistetaan TOP 10 (vain jos ei tullut maailmanennätystä)
+                const seedListText = document.getElementById('seed-list-content').innerText;
+                const scores = seedListText.match(/\d+/g);
                 if (scores) {
-                    const pointsOnly = scores.filter((_, i) => i % 2 !== 0).map(Number);
-                    if (pointsOnly.length < 10 || myScore > Math.min(...pointsOnly)) {
+                    const topScores = scores.filter((_, i) => i % 2 !== 0).map(Number);
+                    if (topScores.length < 10 || myScore > Math.min(...topScores)) {
                         banner.innerHTML = `<div style="color: var(--neon); font-weight: bold; font-size: 16px; margin-bottom: 10px; animation: pulse-banner 1.5s infinite;">✨ TOP 10 SAAVUTETTU! ✨</div>`;
                     }
                 }
             }
         }
 
-        // Winner determination
+        // Voittajan määritys (moninpeliä varten)
         let pilots = [{ name: player.name, score: myScore, isMe: true }];
         for(let id in opponents) pilots.push({ name: opponents[id].name, score: opponents[id].score, isMe: false });
         pilots.sort((a,b) => b.score - a.score);
@@ -594,10 +602,10 @@
             winnerBox.innerHTML = `<div style="color:var(--gold); font-weight:bold; font-size:18px; letter-spacing:1px;">🥇 VOITTAJA: ${winner.name} 🥇</div>`;
         }
         
-        // TULOSTAULUKKO: Näytetään kenelle tuli uusi WR
+        // Tuloslista
         document.getElementById('final-leaderboard').innerHTML = pilots.map(p => {
-            const isNewWR = p.score > window.seedTop1Score;
-            const wrLabel = isNewWR ? ` <span style="color:var(--gold); font-size:10px; vertical-align:middle;">[NEW WR!]</span>` : "";
+            const isMeNewWR = p.score >= window.seedTop1Score && p.score > 0;
+            const wrLabel = isMeNewWR ? ` <span style="color:var(--gold); font-size:10px; vertical-align:middle;">[NEW WR!]</span>` : "";
             return `
             <tr style="color:${p.isMe?'var(--neon)':'white'}; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <td style="padding:8px 10px">${p.name} ${p.isMe?'(SINÄ)':''}${wrLabel}</td>
@@ -605,10 +613,6 @@
             </tr>`;
         }).join('');
         
-        // Päivitetään paikallinen WR-muuttuja vasta onnittelun jälkeen
-        const highestInMatch = Math.max(...pilots.map(p => p.score));
-        if (highestInMatch > window.seedTop1Score) window.seedTop1Score = highestInMatch;
-
         if(isHost) {
             document.getElementById('host-restart-controls').style.display = 'block';
             document.getElementById('guest-wait-info').style.display = 'none';
